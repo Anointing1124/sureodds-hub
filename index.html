@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#0E1B15">
 <meta property="og:title" content="SureOdds Hub — Daily Sure Tips">
 <meta property="og:description" content="Daily sure tips and 2odds, curated and tracked in the open.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230E1B15' stroke='%23E8B94B' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='%23E8B94B' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='5' fill='%23E8B94B'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -38,7 +39,7 @@
     padding:14px 0;
   }
   header.top .wrap{display:flex; align-items:center; justify-content:space-between;}
-  .brand{display:flex; align-items:baseline; gap:8px;}
+  .brand{display:flex; align-items:center; gap:8px;}
   .brand .mark{color:var(--gold); font-family:'Oswald',sans-serif; font-weight:700; font-size:1.3rem;}
   .brand .sub{color:var(--text-dim); font-size:0.78rem;}
   .cta-small{
@@ -119,9 +120,17 @@
 <header class="top">
   <div class="wrap">
     <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 64 64" style="flex:0 0 auto;">
+        <circle cx="32" cy="32" r="30" fill="#0E1B15" stroke="#E8B94B" stroke-width="4"/>
+        <circle cx="32" cy="32" r="14" fill="none" stroke="#E8B94B" stroke-width="3"/>
+        <circle cx="32" cy="32" r="5" fill="#E8B94B"/>
+      </svg>
       <span class="mark">SureOdds</span><span class="sub">HUB</span>
     </div>
-    <a class="cta-small" href="#follow">Get tips daily</a>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <a href="about.html" style="color:var(--text-dim); font-size:0.82rem; text-decoration:none;">Track Record</a>
+      <a class="cta-small" href="#follow">Get tips daily</a>
+    </div>
   </div>
 </header>
 

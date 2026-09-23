@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230E1B15' stroke='%23E8B94B' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='%23E8B94B' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='5' fill='%23E8B94B'/%3E%3C/svg%3E">
 <title>SureOdds Hub — Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -131,6 +132,8 @@
   </div>
 
 </div>
+
+<canvas id="share-canvas" width="1080" height="1920" style="display:none;"></canvas>
 
 <script>
 const LS_KEY = "sureodds_admin_cfg";
@@ -270,11 +273,14 @@ async function deleteTip(id) {
   }
 }
 
+let currentTips = [];
+
 async function loadTipsList() {
   const cfg = getConfig();
   const container = document.getElementById("tips-container");
   try {
     const { tips } = await githubGetFile(cfg);
+    currentTips = tips;
     if (tips.length === 0) {
       container.innerHTML = `<p style="color:var(--text-dim); font-size:0.85rem;">No predictions yet — add one above.</p>`;
       return;
@@ -292,6 +298,7 @@ async function loadTipsList() {
           <span class="pill pill-${t.status}">${t.status}</span>
           <button class="btn-won" onclick="updateStatus('${t.id}','won')">Mark Won</button>
           <button class="btn-lost" onclick="updateStatus('${t.id}','lost')">Mark Lost</button>
+          <button class="btn-secondary" onclick="shareImage('${t.id}')">Share Image</button>
           <button class="btn-danger" onclick="deleteTip('${t.id}')">Delete</button>
         </div>
       </div>
@@ -299,6 +306,95 @@ async function loadTipsList() {
   } catch (e) {
     container.innerHTML = `<p style="color:var(--red); font-size:0.85rem;">Couldn't load: ${e.message}</p>`;
   }
+}
+
+function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+  const words = (text || "").split(" ");
+  let line = "";
+  const lines = [];
+  for (let n = 0; n < words.length; n++) {
+    const test = line + words[n] + " ";
+    if (ctx.measureText(test).width > maxWidth && n > 0) {
+      lines.push(line.trim());
+      line = words[n] + " ";
+    } else {
+      line = test;
+    }
+  }
+  lines.push(line.trim());
+  const startY = y - ((lines.length - 1) * lineHeight) / 2;
+  lines.forEach((l, i) => ctx.fillText(l, x, startY + i * lineHeight));
+  return lines.length;
+}
+
+async function shareImage(id) {
+  const tip = currentTips.find((t) => t.id === id);
+  if (!tip) return;
+  if (document.fonts && document.fonts.ready) await document.fonts.ready;
+
+  const canvas = document.getElementById("share-canvas");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, "#152B21");
+  grad.addColorStop(1, "#0E1B15");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.strokeStyle = "#E8B94B";
+  ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.arc(W / 2, 220, 70, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(W / 2, 220, 32, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = "#E8B94B";
+  ctx.beginPath(); ctx.arc(W / 2, 220, 11, 0, Math.PI * 2); ctx.fill();
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#E8B94B";
+  ctx.font = "700 46px Oswald, sans-serif";
+  ctx.fillText("SUREODDS HUB", W / 2, 360);
+
+  if (tip.category) {
+    ctx.font = "600 30px Inter, sans-serif";
+    ctx.fillStyle = "#9FB3A8";
+    ctx.fillText(tip.category.toUpperCase(), W / 2, 420);
+  }
+
+  ctx.fillStyle = "#F2F0E6";
+  ctx.font = "600 54px Oswald, sans-serif";
+  wrapText(ctx, tip.match || "", W / 2, 600, W - 160, 64);
+
+  ctx.font = "500 38px Inter, sans-serif";
+  ctx.fillStyle = "#9FB3A8";
+  wrapText(ctx, tip.pick || "", W / 2, 770, W - 160, 46);
+
+  ctx.font = "700 160px Oswald, sans-serif";
+  ctx.fillStyle = "#E8B94B";
+  ctx.fillText(tip.odds || "", W / 2, 1030);
+  ctx.font = "500 32px Inter, sans-serif";
+  ctx.fillStyle = "#9FB3A8";
+  ctx.fillText("ODDS", W / 2, 1090);
+
+  if (tip.kickoff) {
+    const d = new Date(tip.kickoff);
+    if (!isNaN(d)) {
+      ctx.font = "500 34px Inter, sans-serif";
+      ctx.fillStyle = "#F2F0E6";
+      ctx.fillText(
+        d.toLocaleString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" }),
+        W / 2, 1200
+      );
+    }
+  }
+
+  ctx.font = "400 26px Inter, sans-serif";
+  ctx.fillStyle = "#6C8B7A";
+  ctx.fillText("18+ · Bet responsibly", W / 2, H - 80);
+
+  const link = document.createElement("a");
+  link.download = `sureodds-${(tip.match || "tip").replace(/\s+/g, "-").toLowerCase()}.png`;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
 }
 
 async function init() {

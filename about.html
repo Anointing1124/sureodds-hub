@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Track Record — SureOdds Hub</title>
+<meta name="description" content="Full public track record of every prediction posted on SureOdds Hub, wins and losses both.">
+<meta name="theme-color" content="#0E1B15">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230E1B15' stroke='%23E8B94B' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='%23E8B94B' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='5' fill='%23E8B94B'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0E1B15; --bg-elev:#152B21; --bg-card:#183326; --line:#254435;
+    --text:#F2F0E6; --text-dim:#9FB3A8;
+    --gold:#E8B94B; --green:#2FA972; --red:#E2574C;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--text);}
+  body{font-family:'Inter',system-ui,sans-serif; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);}
+  h1,h2,.headline{font-family:'Oswald',sans-serif; font-weight:600; margin:0;}
+  a{color:inherit;}
+  .wrap{max-width:760px; margin:0 auto; padding:0 18px;}
+
+  header.top{position:sticky; top:0; z-index:10; background:rgba(14,27,21,0.92); backdrop-filter:blur(6px); border-bottom:1px solid var(--line); padding:14px 0;}
+  header.top .wrap{display:flex; align-items:center; justify-content:space-between;}
+  .brand{display:flex; align-items:center; gap:8px;}
+  .brand .mark{color:var(--gold); font-family:'Oswald',sans-serif; font-weight:700; font-size:1.3rem;}
+  .brand .sub{color:var(--text-dim); font-size:0.78rem;}
+  .back-link{color:var(--text-dim); font-size:0.82rem; text-decoration:none;}
+
+  .hero{padding:32px 0 10px;}
+  .hero h1{font-size:1.8rem;}
+  .hero p{color:var(--text-dim); font-size:0.95rem; margin-top:10px; line-height:1.55; max-width:56ch;}
+
+  .stat-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:24px 0;}
+  .stat-box{background:var(--bg-card); border:1px solid var(--line); border-radius:10px; padding:16px 10px; text-align:center;}
+  .stat-box .num{font-family:'Oswald',sans-serif; font-size:1.5rem; font-weight:600; color:var(--gold);}
+  .stat-box .num.green{color:var(--green);}
+  .stat-box .label{color:var(--text-dim); font-size:0.72rem; margin-top:4px;}
+
+  .cat-breakdown{margin:26px 0;}
+  .cat-breakdown h2{font-size:1.05rem; margin-bottom:12px;}
+  .cat-row{display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); font-size:0.88rem;}
+  .cat-row .cat-name{font-weight:500;}
+  .cat-row .cat-rate{color:var(--green); font-weight:600;}
+
+  section.archive{padding:8px 0 40px;}
+  section.archive h2{font-size:1.05rem; margin-bottom:12px;}
+  table.archive-table{width:100%; border-collapse:collapse; font-size:0.85rem;}
+  table.archive-table th{text-align:left; color:var(--text-dim); font-weight:500; font-size:0.72rem; padding-bottom:8px; border-bottom:1px solid var(--line);}
+  table.archive-table td{padding:9px 6px 9px 0; border-bottom:1px solid var(--line);}
+  .r-won{color:var(--green); font-weight:600;}
+  .r-lost{color:var(--red); font-weight:600;}
+  .r-pending{color:#D8C87A; font-weight:600;}
+
+  .empty{padding:24px; text-align:center; color:var(--text-dim); font-size:0.9rem; border:1px dashed var(--line); border-radius:10px;}
+
+  footer{border-top:1px solid var(--line); padding:22px 0 40px;}
+  footer p{color:var(--text-dim); font-size:0.75rem; line-height:1.6; margin:0;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 64 64" style="flex:0 0 auto;">
+        <circle cx="32" cy="32" r="30" fill="#0E1B15" stroke="#E8B94B" stroke-width="4"/>
+        <circle cx="32" cy="32" r="14" fill="none" stroke="#E8B94B" stroke-width="3"/>
+        <circle cx="32" cy="32" r="5" fill="#E8B94B"/>
+      </svg>
+      <span class="mark">SureOdds</span><span class="sub">HUB</span>
+    </div>
+    <a class="back-link" href="index.html">&larr; Back to tips</a>
+  </div>
+</header>
+
+<div class="wrap">
+  <section class="hero">
+    <h1>Full track record</h1>
+    <p>Every prediction ever posted here, wins and losses both — nothing hidden, nothing deleted. This page updates automatically as predictions are added and settled.</p>
+  </section>
+
+  <div class="stat-grid" id="stat-grid">
+    <div class="stat-box"><div class="num green" id="s-rate">—</div><div class="label">Win rate</div></div>
+    <div class="stat-box"><div class="num" id="s-total">—</div><div class="label">Total settled</div></div>
+    <div class="stat-box"><div class="num" id="s-wl">—</div><div class="label">Won / Lost</div></div>
+  </div>
+
+  <div class="cat-breakdown" id="cat-breakdown" style="display:none;">
+    <h2>By category</h2>
+    <div id="cat-rows"></div>
+  </div>
+
+  <section class="archive">
+    <h2>Full history</h2>
+    <div id="archive-wrap">
+      <div class="empty">Loading…</div>
+    </div>
+  </section>
+
+  <footer>
+    <p>18+. Betting involves risk — never stake more than you can afford to lose. Predictions are opinion and analysis, not a guarantee. Please gamble responsibly.</p>
+  </footer>
+</div>
+
+<script>
+async function load() {
+  try {
+    const res = await fetch("./data.json", { cache: "no-store" });
+    const tips = await res.json();
+    render(Array.isArray(tips) ? tips : []);
+  } catch (e) {
+    document.getElementById("archive-wrap").innerHTML = `<div class="empty">Couldn't load history right now.</div>`;
+  }
+}
+
+function render(tips) {
+  const settled = tips.filter((t) => t.status === "won" || t.status === "lost");
+  const wins = settled.filter((t) => t.status === "won").length;
+  const losses = settled.length - wins;
+  const rate = settled.length ? Math.round((wins / settled.length) * 100) : null;
+
+  document.getElementById("s-rate").textContent = rate !== null ? rate + "%" : "—";
+  document.getElementById("s-total").textContent = settled.length || "—";
+  document.getElementById("s-wl").textContent = settled.length ? `${wins}W / ${losses}L` : "—";
+
+  // Category breakdown
+  const byCat = {};
+  settled.forEach((t) => {
+    const cat = t.category || "Uncategorized";
+    byCat[cat] = byCat[cat] || { won: 0, total: 0 };
+    byCat[cat].total++;
+    if (t.status === "won") byCat[cat].won++;
+  });
+  const catKeys = Object.keys(byCat);
+  if (catKeys.length > 0) {
+    document.getElementById("cat-breakdown").style.display = "block";
+    document.getElementById("cat-rows").innerHTML = catKeys.map((cat) => {
+      const r = Math.round((byCat[cat].won / byCat[cat].total) * 100);
+      return `<div class="cat-row"><span class="cat-name">${cat}</span><span class="cat-rate">${r}% (${byCat[cat].won}/${byCat[cat].total})</span></div>`;
+    }).join("");
+  }
+
+  // Full archive, most recent first
+  const sorted = [...tips].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const archiveWrap = document.getElementById("archive-wrap");
+  if (sorted.length === 0) {
+    archiveWrap.innerHTML = `<div class="empty">No predictions posted yet.</div>`;
+    return;
+  }
+  archiveWrap.innerHTML = `
+    <table class="archive-table">
+      <thead><tr><th>Date</th><th>Match / Pick</th><th>Odds</th><th>Result</th></tr></thead>
+      <tbody>
+        ${sorted.map((t) => {
+          const cls = t.status === "won" ? "r-won" : t.status === "lost" ? "r-lost" : "r-pending";
+          const label = t.status === "won" ? "Won" : t.status === "lost" ? "Lost" : "Pending";
+          return `<tr>
+            <td style="color:var(--text-dim);">${t.date || ""}</td>
+            <td>${t.match || ""}${t.pick ? " — " + t.pick : ""}</td>
+            <td>${t.odds || ""}</td>
+            <td class="${cls}">${label}</td>
+          </tr>`;
+        }).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>SureOdds Hub — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0E1B15; --bg-elev:#152B21; --bg-card:#183326;
+    --line:#254435; --text:#F2F0E6; --text-dim:#9FB3A8;
+    --gold:#E8B94B; --green:#2FA972; --red:#E2574C;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--text);}
+  body{font-family:'Inter',system-ui,sans-serif; padding:18px; padding-bottom:60px;
+    padding-top:calc(18px + env(safe-area-inset-top,0px));}
+  h1,h2,.headline{font-family:'Oswald',sans-serif; font-weight:600; margin:0;}
+  .wrap{max-width:640px; margin:0 auto;}
+  h1{font-size:1.4rem; margin-bottom:4px;}
+  .sub{color:var(--text-dim); font-size:0.85rem; margin-bottom:20px;}
+
+  .card{background:var(--bg-card); border:1px solid var(--line); border-radius:10px; padding:18px; margin-bottom:16px;}
+  .card h2{font-size:1rem; margin-bottom:12px;}
+
+  label{display:block; font-size:0.78rem; color:var(--text-dim); margin:10px 0 4px;}
+  label:first-of-type{margin-top:0;}
+  input,select{
+    width:100%; background:var(--bg-elev); border:1px solid var(--line); color:var(--text);
+    padding:10px 12px; border-radius:7px; font-size:0.95rem; font-family:inherit;
+  }
+  input::placeholder{color:#5C7466;}
+
+  .row2{display:flex; gap:10px;}
+  .row2 > div{flex:1;}
+
+  button{
+    font-family:inherit; font-weight:600; font-size:0.9rem; border:none; border-radius:7px;
+    padding:11px 16px; cursor:pointer;
+  }
+  .btn-primary{background:var(--gold); color:#241900; width:100%; margin-top:16px;}
+  .btn-secondary{background:transparent; border:1px solid var(--line); color:var(--text); font-size:0.8rem; padding:8px 12px;}
+  .btn-danger{background:#2A1414; color:var(--red); font-size:0.78rem; padding:7px 11px;}
+  .btn-won{background:#0F2A1E; color:var(--green); font-size:0.78rem; padding:7px 11px;}
+  .btn-lost{background:#2A1414; color:var(--red); font-size:0.78rem; padding:7px 11px;}
+
+  .status-msg{font-size:0.85rem; margin-top:10px; padding:10px 12px; border-radius:7px; display:none;}
+  .status-msg.show{display:block;}
+  .status-msg.ok{background:#0F2A1E; color:var(--green);}
+  .status-msg.err{background:#2A1414; color:var(--red);}
+  .status-msg.pending{background:#2A2A18; color:#D8C87A;}
+
+  .tip-row{border-bottom:1px solid var(--line); padding:12px 0;}
+  .tip-row:last-child{border-bottom:none;}
+  .tip-row-top{display:flex; justify-content:space-between; gap:10px;}
+  .tip-row-title{font-weight:600; font-size:0.95rem;}
+  .tip-row-sub{color:var(--text-dim); font-size:0.82rem; margin-top:2px;}
+  .tip-row-odds{font-family:'Oswald',sans-serif; color:var(--gold); font-weight:600;}
+  .tip-row-actions{display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;}
+  .pill{font-size:0.7rem; padding:2px 8px; border-radius:20px; font-weight:600;}
+  .pill-pending{background:#2A2A18; color:#D8C87A;}
+  .pill-won{background:#0F2A1E; color:var(--green);}
+  .pill-lost{background:#2A1414; color:var(--red);}
+
+  #setup-screen{max-width:480px; margin:60px auto 0;}
+  #app-screen{display:none;}
+  small.hint{display:block; color:#6C8B7A; font-size:0.75rem; margin-top:4px; line-height:1.4;}
+  a{color:var(--gold);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===================== SETUP SCREEN ===================== -->
+  <div id="setup-screen">
+    <h1>SureOdds Hub — Admin setup</h1>
+    <p class="sub">One-time setup. This is stored only in this browser, on this device.</p>
+    <div class="card">
+      <label>GitHub username (repo owner)</label>
+      <input id="cfg-owner" placeholder="e.g. anointing-dev">
+      <label>Repository name</label>
+      <input id="cfg-repo" placeholder="e.g. sureodds-hub">
+      <label>Branch</label>
+      <input id="cfg-branch" placeholder="main" value="main">
+      <label>Personal Access Token</label>
+      <input id="cfg-token" type="password" placeholder="ghp_...">
+      <small class="hint">
+        Create one at github.com → Settings → Developer settings → Personal access tokens →
+        Fine-grained tokens → give it "Contents: Read and write" access to this one repo only.
+        Never share this token or paste this admin page's link publicly.
+      </small>
+      <button class="btn-primary" onclick="saveConfig()">Connect</button>
+      <div id="setup-msg" class="status-msg"></div>
+    </div>
+  </div>
+
+  <!-- ===================== MAIN APP SCREEN ===================== -->
+  <div id="app-screen">
+    <h1>Today's picks</h1>
+    <p class="sub">Add a prediction, or update results below.</p>
+
+    <div class="card">
+      <h2>Add a new prediction</h2>
+      <label>Match</label>
+      <input id="f-match" placeholder="e.g. Arsenal vs Chelsea">
+      <label>Pick</label>
+      <input id="f-pick" placeholder="e.g. Over 2.5 goals">
+      <div class="row2">
+        <div>
+          <label>Odds</label>
+          <input id="f-odds" placeholder="e.g. 1.85">
+        </div>
+        <div>
+          <label>Category</label>
+          <input id="f-category" placeholder="e.g. 2 Odds">
+        </div>
+      </div>
+      <label>Kickoff (date &amp; time)</label>
+      <input id="f-kickoff" type="datetime-local">
+      <button class="btn-primary" onclick="addTip()">Publish to site</button>
+      <div id="add-msg" class="status-msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Existing predictions</h2>
+      <div id="tips-container">Loading…</div>
+    </div>
+
+    <button class="btn-secondary" onclick="disconnect()">Disconnect this device</button>
+  </div>
+
+</div>
+
+<script>
+const LS_KEY = "sureodds_admin_cfg";
+
+function getConfig() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || "null"); }
+  catch { return null; }
+}
+
+function showMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = "status-msg show " + type;
+}
+
+function saveConfig() {
+  const owner = document.getElementById("cfg-owner").value.trim();
+  const repo = document.getElementById("cfg-repo").value.trim();
+  const branch = document.getElementById("cfg-branch").value.trim() || "main";
+  const token = document.getElementById("cfg-token").value.trim();
+  if (!owner || !repo || !token) {
+    showMsg("setup-msg", "Fill in all fields.", "err");
+    return;
+  }
+  localStorage.setItem(LS_KEY, JSON.stringify({ owner, repo, branch, token }));
+  showMsg("setup-msg", "Connecting…", "pending");
+  init();
+}
+
+function disconnect() {
+  if (!confirm("Remove saved credentials from this device?")) return;
+  localStorage.removeItem(LS_KEY);
+  location.reload();
+}
+
+function b64EncodeUnicode(str) {
+  return btoa(unescape(encodeURIComponent(str)));
+}
+function b64DecodeUnicode(str) {
+  return decodeURIComponent(escape(atob(str.replace(/\n/g, ""))));
+}
+
+async function githubGetFile(cfg) {
+  const url = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/data.json?ref=${cfg.branch}`;
+  const res = await fetch(url, {
+    headers: { Authorization: `token ${cfg.token}`, Accept: "application/vnd.github+json" },
+  });
+  if (res.status === 404) return { tips: [], sha: null };
+  if (!res.ok) throw new Error(`GitHub error ${res.status}`);
+  const data = await res.json();
+  const tips = JSON.parse(b64DecodeUnicode(data.content) || "[]");
+  return { tips, sha: data.sha };
+}
+
+async function githubSaveFile(cfg, tips, sha, message) {
+  const url = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/data.json`;
+  const body = {
+    message,
+    content: b64EncodeUnicode(JSON.stringify(tips, null, 2)),
+    branch: cfg.branch,
+  };
+  if (sha) body.sha = sha;
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: {
+      Authorization: `token ${cfg.token}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `GitHub error ${res.status}`);
+  }
+}
+
+async function addTip() {
+  const cfg = getConfig();
+  const match = document.getElementById("f-match").value.trim();
+  const pick = document.getElementById("f-pick").value.trim();
+  const odds = document.getElementById("f-odds").value.trim();
+  const category = document.getElementById("f-category").value.trim();
+  const kickoff = document.getElementById("f-kickoff").value;
+
+  if (!match || !pick) {
+    showMsg("add-msg", "Match and pick are required.", "err");
+    return;
+  }
+
+  showMsg("add-msg", "Publishing…", "pending");
+  try {
+    const { tips, sha } = await githubGetFile(cfg);
+    const newTip = {
+      id: Date.now().toString(36),
+      date: new Date().toISOString().slice(0, 10),
+      category, match, pick, odds,
+      kickoff: kickoff || "",
+      status: "pending",
+    };
+    tips.unshift(newTip);
+    await githubSaveFile(cfg, tips, sha, `Add prediction: ${match}`);
+    showMsg("add-msg", "Published! It'll be live on the site within a minute.", "ok");
+    ["f-match", "f-pick", "f-odds", "f-category", "f-kickoff"].forEach(
+      (id) => (document.getElementById(id).value = "")
+    );
+    loadTipsList();
+  } catch (e) {
+    showMsg("add-msg", "Failed: " + e.message, "err");
+  }
+}
+
+async function updateStatus(id, newStatus) {
+  const cfg = getConfig();
+  try {
+    const { tips, sha } = await githubGetFile(cfg);
+    const idx = tips.findIndex((t) => t.id === id);
+    if (idx === -1) return;
+    tips[idx].status = newStatus;
+    await githubSaveFile(cfg, tips, sha, `Mark ${tips[idx].match} as ${newStatus}`);
+    loadTipsList();
+  } catch (e) {
+    alert("Failed: " + e.message);
+  }
+}
+
+async function deleteTip(id) {
+  if (!confirm("Delete this prediction permanently?")) return;
+  const cfg = getConfig();
+  try {
+    const { tips, sha } = await githubGetFile(cfg);
+    const filtered = tips.filter((t) => t.id !== id);
+    await githubSaveFile(cfg, filtered, sha, "Delete a prediction");
+    loadTipsList();
+  } catch (e) {
+    alert("Failed: " + e.message);
+  }
+}
+
+async function loadTipsList() {
+  const cfg = getConfig();
+  const container = document.getElementById("tips-container");
+  try {
+    const { tips } = await githubGetFile(cfg);
+    if (tips.length === 0) {
+      container.innerHTML = `<p style="color:var(--text-dim); font-size:0.85rem;">No predictions yet — add one above.</p>`;
+      return;
+    }
+    container.innerHTML = tips.map((t) => `
+      <div class="tip-row">
+        <div class="tip-row-top">
+          <div>
+            <div class="tip-row-title">${t.match}</div>
+            <div class="tip-row-sub">${t.pick} ${t.category ? "· " + t.category : ""}</div>
+          </div>
+          <div class="tip-row-odds">${t.odds || ""}</div>
+        </div>
+        <div class="tip-row-actions">
+          <span class="pill pill-${t.status}">${t.status}</span>
+          <button class="btn-won" onclick="updateStatus('${t.id}','won')">Mark Won</button>
+          <button class="btn-lost" onclick="updateStatus('${t.id}','lost')">Mark Lost</button>
+          <button class="btn-danger" onclick="deleteTip('${t.id}')">Delete</button>
+        </div>
+      </div>
+    `).join("");
+  } catch (e) {
+    container.innerHTML = `<p style="color:var(--red); font-size:0.85rem;">Couldn't load: ${e.message}</p>`;
+  }
+}
+
+async function init() {
+  const cfg = getConfig();
+  if (!cfg) return;
+  try {
+    await githubGetFile(cfg); // verifies token/repo work
+    document.getElementById("setup-screen").style.display = "none";
+    document.getElementById("app-screen").style.display = "block";
+    loadTipsList();
+  } catch (e) {
+    document.getElementById("setup-screen").style.display = "block";
+    document.getElementById("app-screen").style.display = "none";
+    showMsg("setup-msg", "Connection failed: " + e.message, "err");
+  }
+}
+
+init();
+</script>
+</body>
+</html>

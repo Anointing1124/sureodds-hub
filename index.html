@@ -27,6 +27,10 @@
     padding-top:env(safe-area-inset-top,0px);
     padding-bottom:env(safe-area-inset-bottom,0px);
     -webkit-font-smoothing:antialiased;
+    background-image:
+      radial-gradient(circle at 1.5px 1.5px, rgba(232,185,75,0.10) 1.5px, transparent 0);
+    background-size:26px 26px;
+    background-attachment:fixed;
   }
   h1,h2,h3,.headline{font-family:'Oswald',sans-serif; font-weight:600; letter-spacing:0.2px; margin:0;}
   a{color:inherit;}
@@ -59,6 +63,40 @@
   .record-strip .stat .num{font-family:'Oswald',sans-serif; font-size:1.5rem; font-weight:600;}
   .record-strip .stat .num.win{color:var(--green);}
   .record-strip .stat .label{color:var(--text-dim); font-size:0.75rem; margin-top:2px;}
+
+  .spotlight{
+    position:relative; margin-top:20px; padding:20px 18px;
+    background:linear-gradient(160deg, #1C3B2A, var(--bg-card));
+    border:1px solid #3A5C46; border-radius:14px;
+    box-shadow:0 0 0 1px rgba(232,185,75,0.08), 0 8px 30px rgba(0,0,0,0.25);
+  }
+  .spotlight-badge{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--gold); color:#241900; font-weight:700; font-size:0.7rem;
+    padding:4px 10px; border-radius:20px; letter-spacing:0.4px; margin-bottom:12px;
+  }
+  .spotlight-top{display:flex; justify-content:space-between; align-items:flex-start; gap:12px;}
+  .spotlight-match{font-family:'Oswald',sans-serif; font-size:1.35rem; font-weight:600; line-height:1.2;}
+  .spotlight-pick{color:var(--text-dim); font-size:0.95rem; margin-top:5px;}
+  .spotlight-odds{font-family:'Oswald',sans-serif; font-size:2.1rem; color:var(--gold); font-weight:700; text-align:right; line-height:1;}
+  .spotlight-odds-label{color:var(--text-dim); font-size:0.68rem; text-align:right; margin-top:2px;}
+  .spotlight-meta{margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.08); font-size:0.8rem; color:var(--text-dim);}
+
+  section.trust{padding:34px 0 6px;}
+  section.trust h2{font-size:1.15rem; margin-bottom:10px;}
+  section.trust p{color:var(--text-dim); font-size:0.92rem; line-height:1.65; max-width:60ch;}
+
+  section.faq{padding:30px 0 6px;}
+  section.faq h2{font-size:1.15rem; margin-bottom:12px;}
+  .faq-item{border-bottom:1px solid var(--line); padding:4px 0;}
+  .faq-item summary{
+    cursor:pointer; padding:12px 0; font-weight:500; font-size:0.94rem; list-style:none;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .faq-item summary::-webkit-details-marker{display:none;}
+  .faq-item summary::after{content:"+"; color:var(--gold); font-size:1.2rem; font-weight:400;}
+  .faq-item[open] summary::after{content:"–";}
+  .faq-item p{color:var(--text-dim); font-size:0.88rem; line-height:1.6; margin:0 0 14px;}
 
   .filters{display:flex; gap:8px; overflow-x:auto; padding:18px 0 4px; scrollbar-width:none;}
   .filters::-webkit-scrollbar{display:none;}
@@ -148,6 +186,8 @@
     </div>
   </section>
 
+  <div id="spotlight-wrap"></div>
+
   <div class="filters" id="filters"></div>
 
   <div class="tips-list" id="tips-list">
@@ -162,6 +202,31 @@
         <tr><td colspan="4" style="color:var(--text-dim); padding:16px 0;">No results yet.</td></tr>
       </tbody>
     </table>
+  </section>
+
+  <section class="trust">
+    <h2>How we pick</h2>
+    <p>Every prediction here goes through the same filter: recent form, head-to-head history, and squad news — no gut feelings, no "vibes" picks. If a match doesn't check enough boxes, it doesn't get posted, even if that means a quiet day. We'd rather post fewer tips and keep a record worth trusting than flood the page for the sake of it.</p>
+  </section>
+
+  <section class="faq">
+    <h2>FAQ</h2>
+    <details class="faq-item">
+      <summary>Is this free?</summary>
+      <p>Yes — every tip posted here is completely free. There's no subscription or hidden paywall.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Do you guarantee wins?</summary>
+      <p>No — nobody can. "Sure" reflects our confidence based on analysis, not a guarantee. Every result, win or loss, is tracked publicly on the <a href="about.html" style="color:var(--gold);">Track Record</a> page so you can judge for yourself.</p>
+    </details>
+    <details class="faq-item">
+      <summary>How is your win rate calculated?</summary>
+      <p>From every settled tip we've ever posted — wins and losses both. Nothing is removed from the record after the fact.</p>
+    </details>
+    <details class="faq-item">
+      <summary>How do I get today's tip fastest?</summary>
+      <p>Join our Telegram or WhatsApp channel below — tips go out there first thing every day.</p>
+    </details>
   </section>
 
   <section class="follow" id="follow">
@@ -207,7 +272,31 @@ function timeUntil(kickoffStr) {
   return h > 0 ? `Kicks off in ${h}h ${m}m` : `Kicks off in ${m}m`;
 }
 
+function renderSpotlight(tips) {
+  const wrap = document.getElementById("spotlight-wrap");
+  const featured = tips.find((t) => t.status === "pending");
+  if (!featured) { wrap.innerHTML = ""; return; }
+  const timing = timeUntil(featured.kickoff);
+  wrap.innerHTML = `
+    <div class="spotlight">
+      <span class="spotlight-badge">⭐ Tip of the Day</span>
+      <div class="spotlight-top">
+        <div>
+          ${featured.category ? `<span class="tip-cat">${featured.category}</span>` : ""}
+          <div class="spotlight-match">${featured.match || ""}</div>
+          <div class="spotlight-pick">${featured.pick || ""}</div>
+        </div>
+        <div>
+          <div class="spotlight-odds">${featured.odds || ""}</div>
+          <div class="spotlight-odds-label">ODDS</div>
+        </div>
+      </div>
+      ${timing ? `<div class="spotlight-meta">${timing}</div>` : ""}
+    </div>`;
+}
+
 function render(tips) {
+  renderSpotlight(tips);
   const categories = ["All", ...new Set(tips.map((t) => t.category).filter(Boolean))];
   const filtersEl = document.getElementById("filters");
   filtersEl.innerHTML = "";
@@ -299,6 +388,7 @@ async function loadTips() {
         `<div class="empty">No tips posted yet — check back soon.</div>`;
       document.getElementById("filters").innerHTML = "";
       document.getElementById("record-strip").style.display = "none";
+      document.getElementById("spotlight-wrap").innerHTML = "";
       return;
     }
     document.getElementById("record-strip").style.display = "";
@@ -307,6 +397,7 @@ async function loadTips() {
     document.getElementById("tips-list").innerHTML =
       `<div class="empty">No tips posted yet — check back soon.</div>`;
     document.getElementById("filters").innerHTML = "";
+    document.getElementById("spotlight-wrap").innerHTML = "";
   }
 }
 

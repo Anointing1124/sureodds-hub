@@ -253,16 +253,6 @@
     <div class="skeleton-card"><div class="skeleton-line w20"></div><div class="skeleton-line w60"></div><div class="skeleton-line w40"></div></div>
   </div>
 
-  <section class="track">
-    <h2>Recent results</h2>
-    <table class="archive">
-      <thead><tr><th>Date</th><th>Pick</th><th>Odds</th><th>Result</th></tr></thead>
-      <tbody id="archive-body">
-        <tr><td colspan="4" style="color:var(--text-dim); padding:16px 0;">No results yet.</td></tr>
-      </tbody>
-    </table>
-  </section>
-
   <section class="trust">
     <h2>How we pick</h2>
     <p>Every prediction here goes through the same filter: recent form, head-to-head history, and squad news — no gut feelings, no "vibes" picks. If a match doesn't check enough boxes, it doesn't get posted, even if that means a quiet day. We'd rather post fewer tips and keep a record worth trusting than flood the page for the sake of it.</p>
@@ -423,15 +413,23 @@ function renderYesterdayBanner(tips) {
 
 function render(tips) {
   allTips = tips;
-  renderSpotlight(tips);
+  const pendingTips = tips.filter((t) => t.status === "pending");
+  renderSpotlight(pendingTips);
   renderYesterdayBanner(tips);
-  const categories = ["All", ...new Set(tips.map((t) => t.category).filter(Boolean))];
+  const categories = ["All", ...new Set(pendingTips.map((t) => t.category).filter(Boolean))]
+    .sort((a, b) => {
+      if (a === "All") return -1;
+      if (b === "All") return 1;
+      const na = parseFloat(a), nb = parseFloat(b);
+      if (isNaN(na) || isNaN(nb)) return a.localeCompare(b);
+      return na - nb;
+    });
   const filtersEl = document.getElementById("filters");
   filtersEl.innerHTML = "";
   let active = "All";
 
   function draw() {
-    const list = (active === "All" ? tips : tips.filter((t) => t.category === active))
+    const list = (active === "All" ? pendingTips : pendingTips.filter((t) => t.category === active))
       .slice()
       .sort((a, b) => {
         const oa = parseFloat(a.odds);
@@ -442,13 +440,11 @@ function render(tips) {
       });
     const listEl = document.getElementById("tips-list");
     if (list.length === 0) {
-      listEl.innerHTML = `<div class="empty">No tips in this category yet — check back soon.</div>`;
+      listEl.innerHTML = `<div class="empty">No pending tips right now — check back soon.</div>`;
       return;
     }
     listEl.innerHTML = list.map((t) => {
-      const statusClass = t.status === "won" ? "status-won" : t.status === "lost" ? "status-lost" : "status-pending";
-      const statusLabel = t.status === "won" ? "Won" : t.status === "lost" ? "Lost" : "Pending";
-      const timing = t.status === "pending" ? (timeUntil(t.kickoff) || "") : "";
+      const timing = timeUntil(t.kickoff) || "";
       return `
         <div class="tip-card">
           <div class="tip-top">
@@ -464,7 +460,7 @@ function render(tips) {
             <span>${timing}</span>
             <span style="display:flex; align-items:center; gap:8px;">
               <button class="share-btn" onclick="shareTip('${t.id}')">Share</button>
-              <span class="status-pill ${statusClass}">${statusLabel}</span>
+              <span class="status-pill status-pending">Pending</span>
             </span>
           </div>
         </div>`;
@@ -485,7 +481,7 @@ function render(tips) {
 
   draw();
 
-  // Record strip + archive from settled tips (won/lost), most recent first
+  // Record strip stats come from all settled tips (site-wide history), not just what's shown above
   const settled = tips.filter((t) => t.status === "won" || t.status === "lost")
     .sort((a, b) => new Date(b.date) - new Date(a.date));
   const wins = settled.filter((t) => t.status === "won").length;
@@ -505,19 +501,6 @@ function render(tips) {
   document.getElementById("stat-streak").textContent = streak
     ? `${streak} ${streakType === "won" ? "W" : "L"}`
     : "—";
-
-  const archiveBody = document.getElementById("archive-body");
-  if (settled.length === 0) {
-    archiveBody.innerHTML = `<tr><td colspan="4" style="color:var(--text-dim); padding:16px 0;">No results yet.</td></tr>`;
-  } else {
-    archiveBody.innerHTML = settled.slice(0, 15).map((t) => `
-      <tr>
-        <td style="color:var(--text-dim);">${t.date || ""}</td>
-        <td>${t.match || t.pick || ""}</td>
-        <td>${t.odds || ""}</td>
-        <td class="${t.status === "won" ? "r-won" : "r-lost"}">${t.status === "won" ? "Won" : "Lost"}</td>
-      </tr>`).join("");
-  }
 }
 
 async function loadTips() {

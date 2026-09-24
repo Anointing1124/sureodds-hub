@@ -12,6 +12,8 @@
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="og-image.png">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230E1B15' stroke='%23E8B94B' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='%23E8B94B' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='5' fill='%23E8B94B'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -137,6 +139,19 @@
   .last-updated{color:#6C8B7A; font-size:0.72rem; margin-top:8px; display:flex; align-items:center; gap:5px;}
   .last-updated .dot{width:6px; height:6px; border-radius:50%; background:var(--green); display:inline-block;}
 
+  .yesterday-banner{
+    display:flex; align-items:center; gap:8px; margin-top:14px; padding:10px 14px;
+    background:var(--bg-card); border:1px solid var(--line); border-radius:8px; font-size:0.85rem;
+  }
+  .yesterday-banner b{color:var(--text);}
+
+  .confidence{font-size:0.75rem; color:var(--gold); letter-spacing:1px;}
+  .share-btn{
+    background:transparent; border:1px solid var(--line); color:var(--text-dim);
+    border-radius:6px; padding:4px 9px; font-size:0.72rem; cursor:pointer; font-family:inherit;
+  }
+  .share-btn:active{transform:scale(0.94);}
+
   .cat-icon{display:inline-flex; vertical-align:-3px; margin-right:4px;}
 
   .filters{display:flex; gap:8px; overflow-x:auto; padding:18px 0 4px; scrollbar-width:none;}
@@ -220,6 +235,7 @@
     <h1>Today's sure tips, no fluff.</h1>
     <p class="lede">Every pick posted here is tracked publicly — wins and losses both. Filter by odds category below.</p>
     <div class="last-updated" id="last-updated"></div>
+    <div id="yesterday-wrap"></div>
 
     <div class="record-strip" id="record-strip">
       <div class="stat"><div class="num win" id="stat-winrate">—</div><div class="label">Win rate</div></div>
@@ -332,6 +348,31 @@ function categoryIcon(category) {
   return found ? found.icon : "🎯";
 }
 
+function confidenceStars(level) {
+  if (!level) return "";
+  const l = level.toLowerCase();
+  const filled = l === "high" ? 3 : l === "medium" ? 2 : l === "low" ? 1 : 0;
+  if (filled === 0) return "";
+  return `<span class="confidence">${"★".repeat(filled)}${"☆".repeat(3 - filled)}</span>`;
+}
+
+let allTips = [];
+async function shareTip(id) {
+  const t = allTips.find((x) => x.id === id);
+  if (!t) return;
+  const text = `🎯 ${t.category ? t.category + " — " : ""}${t.match}\n${t.pick}\n💰 Odds: ${t.odds}\n\nMore tips: ${location.href.split("#")[0]}`;
+  if (navigator.share) {
+    try { await navigator.share({ text }); } catch (e) {}
+  } else {
+    try {
+      await navigator.clipboard.writeText(text);
+      alert("Copied to clipboard — paste it anywhere to share.");
+    } catch (e) {
+      window.prompt("Copy this to share:", text);
+    }
+  }
+}
+
 function countUp(el, target, suffix) {
   const start = 0;
   const duration = 600;
@@ -358,6 +399,7 @@ function renderSpotlight(tips) {
           ${featured.category ? `<span class="tip-cat">${categoryIcon(featured.category)} ${featured.category}</span>` : ""}
           <div class="spotlight-match">${featured.match || ""}</div>
           <div class="spotlight-pick">${featured.pick || ""}</div>
+          ${confidenceStars(featured.confidence)}
         </div>
         <div>
           <div class="spotlight-odds">${featured.odds || ""}</div>
@@ -368,8 +410,21 @@ function renderSpotlight(tips) {
     </div>`;
 }
 
+function renderYesterdayBanner(tips) {
+  const wrap = document.getElementById("yesterday-wrap");
+  const y = new Date();
+  y.setDate(y.getDate() - 1);
+  const yStr = y.toISOString().slice(0, 10);
+  const yTips = tips.filter((t) => t.date === yStr && (t.status === "won" || t.status === "lost"));
+  if (yTips.length === 0) { wrap.innerHTML = ""; return; }
+  const won = yTips.filter((t) => t.status === "won").length;
+  wrap.innerHTML = `<div class="yesterday-banner">📅 Yesterday: <b>${won}/${yTips.length} won</b> ${won === yTips.length ? "🔥" : won === 0 ? "" : "✅"}</div>`;
+}
+
 function render(tips) {
+  allTips = tips;
   renderSpotlight(tips);
+  renderYesterdayBanner(tips);
   const categories = ["All", ...new Set(tips.map((t) => t.category).filter(Boolean))];
   const filtersEl = document.getElementById("filters");
   filtersEl.innerHTML = "";
@@ -401,12 +456,16 @@ function render(tips) {
               ${t.category ? `<span class="tip-cat">${categoryIcon(t.category)} ${t.category}</span>` : ""}
               <div class="tip-match">${t.match || ""}</div>
               <div class="tip-pick">${t.pick || ""}</div>
+              ${confidenceStars(t.confidence)}
             </div>
             <div class="tip-odds">${t.odds || ""}</div>
           </div>
           <div class="tip-meta">
             <span>${timing}</span>
-            <span class="status-pill ${statusClass}">${statusLabel}</span>
+            <span style="display:flex; align-items:center; gap:8px;">
+              <button class="share-btn" onclick="shareTip('${t.id}')">Share</button>
+              <span class="status-pill ${statusClass}">${statusLabel}</span>
+            </span>
           </div>
         </div>`;
     }).join("");
@@ -474,6 +533,7 @@ async function loadTips() {
       document.getElementById("filters").innerHTML = "";
       document.getElementById("record-strip").style.display = "none";
       document.getElementById("spotlight-wrap").innerHTML = "";
+      document.getElementById("yesterday-wrap").innerHTML = "";
       return;
     }
     document.getElementById("record-strip").style.display = "";
@@ -483,12 +543,17 @@ async function loadTips() {
       `<div class="empty">No tips posted yet — check back soon.</div>`;
     document.getElementById("filters").innerHTML = "";
     document.getElementById("spotlight-wrap").innerHTML = "";
+    document.getElementById("yesterday-wrap").innerHTML = "";
   }
 }
 
 loadTips();
 // Refresh every 3 minutes so kickoff countdowns and new tips stay current
 setInterval(loadTips, 180000);
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js").catch(() => {});
+}
 </script>
 </body>
 </html>

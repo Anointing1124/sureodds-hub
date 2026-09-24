@@ -115,7 +115,7 @@
     <p class="sub">Add a prediction, or update results below.</p>
 
     <div class="card">
-      <h2>Add a new prediction</h2>
+      <h2 id="form-title">Add a new prediction</h2>
       <label>Match</label>
       <input id="f-match" placeholder="e.g. Arsenal vs Chelsea">
       <label>Pick</label>
@@ -130,9 +130,23 @@
           <input id="f-category" placeholder="e.g. 2 Odds">
         </div>
       </div>
-      <label>Kickoff (date &amp; time)</label>
-      <input id="f-kickoff" type="datetime-local">
-      <button class="btn-primary" onclick="addTip()">Publish to site</button>
+      <div class="row2">
+        <div>
+          <label>Confidence</label>
+          <select id="f-confidence">
+            <option value="">— None —</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+        <div>
+          <label>Kickoff (date &amp; time)</label>
+          <input id="f-kickoff" type="datetime-local">
+        </div>
+      </div>
+      <button class="btn-primary" id="submit-btn" onclick="addTip()">Publish to site</button>
+      <button class="btn-secondary" id="cancel-edit-btn" onclick="cancelEdit()" style="display:none; width:100%; margin-top:8px;">Cancel edit</button>
       <div id="add-msg" class="status-msg"></div>
     </div>
 
@@ -226,6 +240,36 @@ async function githubSaveFile(cfg, tips, sha, message) {
   }
 }
 
+let editingId = null;
+
+function editTip(id) {
+  const t = currentTips.find((x) => x.id === id);
+  if (!t) return;
+  editingId = id;
+  document.getElementById("f-match").value = t.match || "";
+  document.getElementById("f-pick").value = t.pick || "";
+  document.getElementById("f-odds").value = t.odds || "";
+  document.getElementById("f-category").value = t.category || "";
+  document.getElementById("f-confidence").value = t.confidence || "";
+  document.getElementById("f-kickoff").value = t.kickoff || "";
+  document.getElementById("form-title").textContent = "Edit prediction";
+  document.getElementById("submit-btn").textContent = "Update prediction";
+  document.getElementById("cancel-edit-btn").style.display = "block";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function cancelEdit() {
+  editingId = null;
+  ["f-match", "f-pick", "f-odds", "f-category", "f-kickoff"].forEach((id) => (document.getElementById(id).value = ""));
+  document.getElementById("f-confidence").value = "";
+  document.getElementById("form-title").textContent = "Add a new prediction";
+  document.getElementById("submit-btn").textContent = "Publish to site";
+  document.getElementById("cancel-edit-btn").style.display = "none";
+  const msgEl = document.getElementById("add-msg");
+  msgEl.textContent = "";
+  msgEl.className = "status-msg";
+}
+
 async function postToTelegram(cfg, text) {
   if (!cfg.tgToken || !cfg.tgChannel) return { skipped: true };
   const url = `https://api.telegram.org/bot${cfg.tgToken}/sendMessage`;
@@ -245,6 +289,7 @@ async function addTip() {
   const pick = document.getElementById("f-pick").value.trim();
   const odds = document.getElementById("f-odds").value.trim();
   const category = document.getElementById("f-category").value.trim();
+  const confidence = document.getElementById("f-confidence").value;
   const kickoff = document.getElementById("f-kickoff").value;
 
   if (!match || !pick) {
@@ -252,13 +297,26 @@ async function addTip() {
     return;
   }
 
-  showMsg("add-msg", "Publishing…", "pending");
+  const isEdit = !!editingId;
+  showMsg("add-msg", isEdit ? "Updating…" : "Publishing…", "pending");
   try {
     const { tips, sha } = await githubGetFile(cfg);
+
+    if (isEdit) {
+      const idx = tips.findIndex((t) => t.id === editingId);
+      if (idx === -1) throw new Error("Prediction no longer exists");
+      tips[idx] = { ...tips[idx], match, pick, odds, category, confidence, kickoff: kickoff || "" };
+      await githubSaveFile(cfg, tips, sha, `Edit prediction: ${match}`);
+      showMsg("add-msg", "Updated!", "ok");
+      cancelEdit();
+      loadTipsList();
+      return;
+    }
+
     const newTip = {
       id: Date.now().toString(36),
       date: new Date().toISOString().slice(0, 10),
-      category, match, pick, odds,
+      category, match, pick, odds, confidence,
       kickoff: kickoff || "",
       status: "pending",
     };
@@ -279,6 +337,7 @@ async function addTip() {
     ["f-match", "f-pick", "f-odds", "f-category", "f-kickoff"].forEach(
       (id) => (document.getElementById(id).value = "")
     );
+    document.getElementById("f-confidence").value = "";
     loadTipsList();
   } catch (e) {
     showMsg("add-msg", "Failed: " + e.message, "err");
@@ -345,6 +404,7 @@ async function loadTipsList() {
           <span class="pill pill-${t.status}">${t.status}</span>
           <button class="btn-won" onclick="updateStatus('${t.id}','won')">Mark Won</button>
           <button class="btn-lost" onclick="updateStatus('${t.id}','lost')">Mark Lost</button>
+          <button class="btn-secondary" onclick="editTip('${t.id}')">Edit</button>
           <button class="btn-secondary" onclick="shareImage('${t.id}')">Share Image</button>
           <button class="btn-danger" onclick="deleteTip('${t.id}')">Delete</button>
         </div>

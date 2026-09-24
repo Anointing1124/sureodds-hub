@@ -94,6 +94,19 @@
       <button class="btn-primary" onclick="saveConfig()">Connect</button>
       <div id="setup-msg" class="status-msg"></div>
     </div>
+
+    <div class="card">
+      <h2>Auto-post to Telegram (optional)</h2>
+      <label>Bot Token</label>
+      <input id="cfg-tg-token" type="password" placeholder="123456:ABC-...">
+      <label>Channel username</label>
+      <input id="cfg-tg-channel" placeholder="@sureoddsshub">
+      <small class="hint">
+        Create a bot via @BotFather on Telegram (send /newbot), then add that bot as an
+        <strong>admin</strong> of your channel with permission to post messages. Leave blank
+        to skip auto-posting — you can add this later.
+      </small>
+    </div>
   </div>
 
   <!-- ===================== MAIN APP SCREEN ===================== -->
@@ -154,11 +167,13 @@ function saveConfig() {
   const repo = document.getElementById("cfg-repo").value.trim();
   const branch = document.getElementById("cfg-branch").value.trim() || "main";
   const token = document.getElementById("cfg-token").value.trim();
+  const tgToken = document.getElementById("cfg-tg-token").value.trim();
+  const tgChannel = document.getElementById("cfg-tg-channel").value.trim();
   if (!owner || !repo || !token) {
     showMsg("setup-msg", "Fill in all fields.", "err");
     return;
   }
-  localStorage.setItem(LS_KEY, JSON.stringify({ owner, repo, branch, token }));
+  localStorage.setItem(LS_KEY, JSON.stringify({ owner, repo, branch, token, tgToken, tgChannel }));
   showMsg("setup-msg", "Connecting…", "pending");
   init();
 }
@@ -211,6 +226,19 @@ async function githubSaveFile(cfg, tips, sha, message) {
   }
 }
 
+async function postToTelegram(cfg, text) {
+  if (!cfg.tgToken || !cfg.tgChannel) return { skipped: true };
+  const url = `https://api.telegram.org/bot${cfg.tgToken}/sendMessage`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: cfg.tgChannel, text, parse_mode: "HTML" }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) throw new Error(data.description || "Telegram post failed");
+  return data;
+}
+
 async function addTip() {
   const cfg = getConfig();
   const match = document.getElementById("f-match").value.trim();
@@ -236,7 +264,18 @@ async function addTip() {
     };
     tips.unshift(newTip);
     await githubSaveFile(cfg, tips, sha, `Add prediction: ${match}`);
-    showMsg("add-msg", "Published! It'll be live on the site within a minute.", "ok");
+
+    let tgNote = "";
+    try {
+      const kickoffText = kickoff ? new Date(kickoff).toLocaleString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" }) : "";
+      const msg = `🎯 <b>New Prediction${category ? " — " + category : ""}</b>\n\n<b>${match}</b>\n${pick}\n\n💰 Odds: <b>${odds}</b>${kickoffText ? `\n⏰ ${kickoffText}` : ""}`;
+      const tgResult = await postToTelegram(cfg, msg);
+      if (!tgResult.skipped) tgNote = " Posted to Telegram too.";
+    } catch (tgErr) {
+      tgNote = ` (Telegram post failed: ${tgErr.message})`;
+    }
+
+    showMsg("add-msg", "Published! It'll be live on the site within a minute." + tgNote, "ok");
     ["f-match", "f-pick", "f-odds", "f-category", "f-kickoff"].forEach(
       (id) => (document.getElementById(id).value = "")
     );
@@ -254,6 +293,14 @@ async function updateStatus(id, newStatus) {
     if (idx === -1) return;
     tips[idx].status = newStatus;
     await githubSaveFile(cfg, tips, sha, `Mark ${tips[idx].match} as ${newStatus}`);
+    try {
+      const emoji = newStatus === "won" ? "✅" : "❌";
+      const label = newStatus === "won" ? "WON" : "LOST";
+      const msg = `${emoji} <b>Result: ${label}</b>\n\n${tips[idx].match}\n${tips[idx].pick}${tips[idx].odds ? ` @ ${tips[idx].odds}` : ""}`;
+      await postToTelegram(cfg, msg);
+    } catch (tgErr) {
+      console.warn("Telegram result post failed:", tgErr.message);
+    }
     loadTipsList();
   } catch (e) {
     alert("Failed: " + e.message);

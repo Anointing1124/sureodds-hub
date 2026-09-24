@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SureOdds Hub — Daily Sure Tips</title>
+<meta name="description" content="Daily sure tips and 2odds, curated and tracked in the open.">
+<meta name="theme-color" content="#0E1B15">
+<meta property="og:title" content="SureOdds Hub — Daily Sure Tips">
+<meta property="og:description" content="Daily sure tips and 2odds, curated and tracked in the open.">
+<meta property="og:image" content="og-image.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="og-image.png">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230E1B15' stroke='%23E8B94B' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='%23E8B94B' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='5' fill='%23E8B94B'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0E1B15; --bg-elev:#152B21; --bg-card:#183326;
+    --line:#254435;
+    --text:#F2F0E6; --text-dim:#9FB3A8;
+    --gold:#E8B94B; --green:#2FA972; --red:#E2574C;
+    font-size:16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);}
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    -webkit-font-smoothing:antialiased;
+    background-image:
+      radial-gradient(circle at 1.5px 1.5px, rgba(232,185,75,0.10) 1.5px, transparent 0);
+    background-size:26px 26px;
+    background-attachment:fixed;
+  }
+  h1,h2,h3,.headline{font-family:'Oswald',sans-serif; font-weight:600; letter-spacing:0.2px; margin:0;}
+  a{color:inherit;}
+  .wrap{max-width:760px; margin:0 auto; padding:0 18px;}
+
+  header.top{
+    position:sticky; top:0; z-index:10;
+    background:rgba(14,27,21,0.92); backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+    padding:14px 0;
+  }
+  header.top .wrap{display:flex; align-items:center; justify-content:space-between;}
+  .brand{display:flex; align-items:center; gap:8px;}
+  .brand .mark{color:var(--gold); font-family:'Oswald',sans-serif; font-weight:700; font-size:1.3rem;}
+  .brand .sub{color:var(--text-dim); font-size:0.78rem;}
+  .cta-small{
+    background:var(--green); color:#062015; font-weight:600; font-size:0.82rem;
+    padding:8px 14px; border-radius:6px; text-decoration:none; white-space:nowrap;
+  }
+
+  .hero{padding:34px 0 22px;}
+  .hero .date{color:var(--text-dim); font-size:0.85rem; margin-bottom:6px;}
+  .hero h1{font-size:2rem; line-height:1.15;}
+  .hero .lede{color:var(--text-dim); margin-top:10px; font-size:0.98rem; max-width:52ch; line-height:1.5;}
+
+  .record-strip{
+    display:flex; gap:22px; padding:16px 0; margin-top:18px;
+    border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+  }
+  .record-strip .stat .num{font-family:'Oswald',sans-serif; font-size:1.5rem; font-weight:600;}
+  .record-strip .stat .num.win{color:var(--green);}
+  .record-strip .stat .label{color:var(--text-dim); font-size:0.75rem; margin-top:2px;}
+
+  .spotlight{
+    position:relative; margin-top:20px; padding:20px 18px;
+    background:linear-gradient(160deg, #1C3B2A, var(--bg-card));
+    border:1px solid #3A5C46; border-radius:14px;
+    box-shadow:0 0 0 1px rgba(232,185,75,0.08), 0 8px 30px rgba(0,0,0,0.25);
+  }
+  .spotlight-badge{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--gold); color:#241900; font-weight:700; font-size:0.7rem;
+    padding:4px 10px; border-radius:20px; letter-spacing:0.4px; margin-bottom:12px;
+  }
+  .spotlight-top{display:flex; justify-content:space-between; align-items:flex-start; gap:12px;}
+  .spotlight-match{font-family:'Oswald',sans-serif; font-size:1.35rem; font-weight:600; line-height:1.2;}
+  .spotlight-pick{color:var(--text-dim); font-size:0.95rem; margin-top:5px;}
+  .spotlight-odds{font-family:'Oswald',sans-serif; font-size:2.1rem; color:var(--gold); font-weight:700; text-align:right; line-height:1;}
+  .spotlight-odds-label{color:var(--text-dim); font-size:0.68rem; text-align:right; margin-top:2px;}
+  .spotlight-meta{margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.08); font-size:0.8rem; color:var(--text-dim);}
+
+  section.trust{padding:34px 0 6px;}
+  section.trust h2{font-size:1.15rem; margin-bottom:10px;}
+  section.trust p{color:var(--text-dim); font-size:0.92rem; line-height:1.65; max-width:60ch;}
+
+  section.faq{padding:30px 0 6px;}
+  section.faq h2{font-size:1.15rem; margin-bottom:12px;}
+  .faq-item{border-bottom:1px solid var(--line); padding:4px 0;}
+  .faq-item summary{
+    cursor:pointer; padding:12px 0; font-weight:500; font-size:0.94rem; list-style:none;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .faq-item summary::-webkit-details-marker{display:none;}
+  .faq-item summary::after{content:"+"; color:var(--gold); font-size:1.2rem; font-weight:400;}
+  .faq-item[open] summary::after{content:"–";}
+  .faq-item p{color:var(--text-dim); font-size:0.88rem; line-height:1.6; margin:0 0 14px;}
+
+  @keyframes fadeSlideIn{
+    from{opacity:0; transform:translateY(10px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+  @keyframes pulse{
+    0%,100%{opacity:0.55;} 50%{opacity:1;}
+  }
+  .tip-card{animation:fadeSlideIn 0.35s ease both;}
+  .tip-card:nth-child(1){animation-delay:0.02s;}
+  .tip-card:nth-child(2){animation-delay:0.06s;}
+  .tip-card:nth-child(3){animation-delay:0.10s;}
+  .tip-card:nth-child(4){animation-delay:0.14s;}
+  .tip-card:nth-child(5){animation-delay:0.18s;}
+  .tip-card{transition:transform 0.15s ease, border-color 0.15s ease;}
+  .tip-card:hover{transform:translateY(-2px); border-color:#3A5C46;}
+  .spotlight{animation:fadeSlideIn 0.4s ease both;}
+  .follow-btn, .cta-small, .filter-btn{transition:transform 0.12s ease, opacity 0.12s ease;}
+  .follow-btn:active, .cta-small:active{transform:scale(0.96);}
+  .filter-btn:hover{border-color:var(--gold); color:var(--text);}
+
+  .skeleton-card{
+    background:var(--bg-card); border:1px solid var(--line); border-radius:10px;
+    padding:14px 16px; margin-bottom:10px;
+  }
+  .skeleton-line{
+    height:14px; border-radius:4px; background:var(--line);
+    animation:pulse 1.3s ease-in-out infinite;
+  }
+  .skeleton-line.w60{width:60%;}
+  .skeleton-line.w40{width:40%; margin-top:8px;}
+  .skeleton-line.w20{width:20%; margin-top:8px; float:right;}
+
+  .last-updated{color:#6C8B7A; font-size:0.72rem; margin-top:8px; display:flex; align-items:center; gap:5px;}
+  .last-updated .dot{width:6px; height:6px; border-radius:50%; background:var(--green); display:inline-block;}
+
+  .yesterday-banner{
+    display:flex; align-items:center; gap:8px; margin-top:14px; padding:10px 14px;
+    background:var(--bg-card); border:1px solid var(--line); border-radius:8px; font-size:0.85rem;
+  }
+  .yesterday-banner b{color:var(--text);}
+
+  .confidence{font-size:0.75rem; color:var(--gold); letter-spacing:1px;}
+  .share-btn{
+    background:transparent; border:1px solid var(--line); color:var(--text-dim);
+    border-radius:6px; padding:4px 9px; font-size:0.72rem; cursor:pointer; font-family:inherit;
+  }
+  .share-btn:active{transform:scale(0.94);}
+
+  .cat-icon{display:inline-flex; vertical-align:-3px; margin-right:4px;}
+
+  .filters{display:flex; gap:8px; overflow-x:auto; padding:18px 0 4px; scrollbar-width:none;}
+  .filters::-webkit-scrollbar{display:none;}
+  .filter-btn{
+    flex:0 0 auto; background:transparent; border:1px solid var(--line); color:var(--text-dim);
+    padding:7px 14px; border-radius:20px; font-size:0.85rem; font-weight:500; cursor:pointer;
+  }
+  .filter-btn.active{background:var(--gold); color:#241900; border-color:var(--gold); font-weight:600;}
+
+  .tips-list{display:flex; flex-direction:column; gap:10px; padding:14px 0 6px;}
+  .tip-card{
+    background:var(--bg-card); border:1px solid var(--line); border-radius:10px;
+    padding:14px 16px;
+  }
+  .tip-top{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
+  .tip-cat{
+    display:inline-block; font-size:0.7rem; color:var(--gold); border:1px solid #4A3B1A;
+    background:#2A2211; padding:2px 8px; border-radius:4px; margin-bottom:6px;
+  }
+  .tip-match{font-size:1.02rem; font-weight:600;}
+  .tip-pick{color:var(--text-dim); font-size:0.9rem; margin-top:3px;}
+  .tip-odds{font-family:'Oswald',sans-serif; font-size:1.3rem; color:var(--gold); font-weight:600; text-align:right;}
+  .tip-meta{display:flex; justify-content:space-between; align-items:center; margin-top:10px; font-size:0.78rem; color:var(--text-dim);}
+  .status-pill{padding:2px 9px; border-radius:20px; font-weight:600; font-size:0.72rem;}
+  .status-pending{background:#2A2A18; color:#D8C87A;}
+  .status-won{background:#0F2A1E; color:var(--green);}
+  .status-lost{background:#2A1414; color:var(--red);}
+
+  .empty{padding:30px 0; color:var(--text-dim); font-size:0.92rem; line-height:1.6; border:1px dashed var(--line); border-radius:10px; text-align:center; margin:14px 0;}
+
+  section.track{padding:36px 0 10px;}
+  section.track h2{font-size:1.2rem; margin-bottom:12px;}
+  table.archive{width:100%; border-collapse:collapse; font-size:0.85rem;}
+  table.archive th{text-align:left; color:var(--text-dim); font-weight:500; font-size:0.72rem; padding-bottom:8px; border-bottom:1px solid var(--line);}
+  table.archive td{padding:9px 0; border-bottom:1px solid var(--line);}
+  table.archive .r-won{color:var(--green); font-weight:600;}
+  table.archive .r-lost{color:var(--red); font-weight:600;}
+
+  section.follow{padding:38px 0 46px; text-align:center;}
+  section.follow h2{font-size:1.3rem; margin-bottom:8px;}
+  section.follow p{color:var(--text-dim); font-size:0.9rem; margin:0 0 18px;}
+  .follow-btns{display:flex; gap:10px; justify-content:center; flex-wrap:wrap;}
+  .follow-btn{
+    padding:11px 20px; border-radius:8px; text-decoration:none; font-weight:600; font-size:0.9rem;
+  }
+  .follow-btn.tg{background:#2FA9E0; color:#06202B;}
+  .follow-btn.wa{background:#3FC658; color:#062015;}
+
+  footer{border-top:1px solid var(--line); padding:22px 0 40px;}
+  footer p{color:var(--text-dim); font-size:0.75rem; line-height:1.6; margin:0;}
+
+  @media (min-width:600px){
+    .hero h1{font-size:2.5rem;}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 64 64" style="flex:0 0 auto;">
+        <circle cx="32" cy="32" r="30" fill="#0E1B15" stroke="#E8B94B" stroke-width="4"/>
+        <circle cx="32" cy="32" r="14" fill="none" stroke="#E8B94B" stroke-width="3"/>
+        <circle cx="32" cy="32" r="5" fill="#E8B94B"/>
+      </svg>
+      <span class="mark">SureOdds</span><span class="sub">HUB</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <a href="about.html" style="color:var(--text-dim); font-size:0.82rem; text-decoration:none;">Track Record</a>
+      <a class="cta-small" href="#follow">Get tips daily</a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section class="hero">
+    <div class="date" id="today-date"></div>
+    <h1>Today's sure tips, no fluff.</h1>
+    <p class="lede">Every pick posted here is tracked publicly — wins and losses both. Filter by odds category below.</p>
+    <div class="last-updated" id="last-updated"></div>
+    <div id="yesterday-wrap"></div>
+
+    <div class="record-strip" id="record-strip">
+      <div class="stat"><div class="num win" id="stat-winrate">—</div><div class="label">Win rate</div></div>
+      <div class="stat"><div class="num" id="stat-total">—</div><div class="label">Tips tracked</div></div>
+      <div class="stat"><div class="num" id="stat-streak">—</div><div class="label">Current streak</div></div>
+    </div>
+  </section>
+
+  <div id="spotlight-wrap"></div>
+
+  <div class="filters" id="filters"></div>
+
+  <div class="tips-list" id="tips-list">
+    <div class="skeleton-card"><div class="skeleton-line w20"></div><div class="skeleton-line w60"></div><div class="skeleton-line w40"></div></div>
+    <div class="skeleton-card"><div class="skeleton-line w20"></div><div class="skeleton-line w60"></div><div class="skeleton-line w40"></div></div>
+  </div>
+
+  <section class="trust">
+    <h2>How we pick</h2>
+    <p>Every prediction here goes through the same filter: recent form, head-to-head history, and squad news — no gut feelings, no "vibes" picks. If a match doesn't check enough boxes, it doesn't get posted, even if that means a quiet day. We'd rather post fewer tips and keep a record worth trusting than flood the page for the sake of it.</p>
+  </section>
+
+  <section class="faq">
+    <h2>FAQ</h2>
+    <details class="faq-item">
+      <summary>Is this free?</summary>
+      <p>Yes — every tip posted here is completely free. There's no subscription or hidden paywall.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Do you guarantee wins?</summary>
+      <p>No — nobody can. "Sure" reflects our confidence based on analysis, not a guarantee. Every result, win or loss, is tracked publicly on the <a href="about.html" style="color:var(--gold);">Track Record</a> page so you can judge for yourself.</p>
+    </details>
+    <details class="faq-item">
+      <summary>How is your win rate calculated?</summary>
+      <p>From every settled tip we've ever posted — wins and losses both. Nothing is removed from the record after the fact.</p>
+    </details>
+    <details class="faq-item">
+      <summary>How do I get today's tip fastest?</summary>
+      <p>Join our Telegram or WhatsApp channel below — tips go out there first thing every day.</p>
+    </details>
+  </section>
+
+  <section class="follow" id="follow">
+    <h2>Never miss a tip</h2>
+    <p>Tips go out here first thing every day.</p>
+    <div class="follow-btns">
+      <a class="follow-btn tg" href="#" id="tg-link">Join Telegram</a>
+      <a class="follow-btn wa" href="#" id="wa-link">WhatsApp Channel</a>
+    </div>
+  </section>
+
+  <footer>
+    <p>18+. Betting involves risk — never stake more than you can afford to lose. Tips are opinion and analysis, not a guarantee. Please gamble responsibly.</p>
+  </footer>
+
+</div>
+
+<script>
+/* ============================================================
+   Data source: data.json living next to this file in the same
+   repo/folder. Add and update predictions using admin.html —
+   this file never needs to be touched directly.
+   ============================================================ */
+const CONFIG = {
+  DATA_URL: "./data.json",
+  TELEGRAM_URL: "https://t.me/sureoddsshub",
+  WHATSAPP_URL: "https://whatsapp.com/channel/0029Vb9NBdMBvvsXZM8hvR21",
+};
+
+document.getElementById("today-date").textContent = new Date().toLocaleDateString(undefined, {
+  weekday: "long", year: "numeric", month: "long", day: "numeric",
+});
+document.getElementById("tg-link").href = CONFIG.TELEGRAM_URL;
+document.getElementById("wa-link").href = CONFIG.WHATSAPP_URL;
+
+function timeUntil(kickoffStr) {
+  const kickoff = new Date(kickoffStr);
+  if (isNaN(kickoff)) return null;
+  const diff = kickoff - new Date();
+  if (diff <= 0) return "Kicked off";
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  return h > 0 ? `Kicks off in ${h}h ${m}m` : `Kicks off in ${m}m`;
+}
+
+const CATEGORY_ICONS = [
+  { match: /foot|soccer|epl|premier|league|uefa|champions/i, icon: "⚽" },
+  { match: /basket|nba/i, icon: "🏀" },
+  { match: /tennis/i, icon: "🎾" },
+  { match: /vip|premium/i, icon: "⭐" },
+  { match: /american football|nfl/i, icon: "🏈" },
+  { match: /cricket/i, icon: "🏏" },
+  { match: /rugby/i, icon: "🏉" },
+  { match: /hockey|nhl/i, icon: "🏒" },
+  { match: /boxing|mma|ufc/i, icon: "🥊" },
+];
+function categoryIcon(category) {
+  if (!category) return "";
+  const found = CATEGORY_ICONS.find((c) => c.match.test(category));
+  return found ? found.icon : "🎯";
+}
+
+function confidenceStars(level) {
+  if (!level) return "";
+  const l = level.toLowerCase();
+  const filled = l === "high" ? 3 : l === "medium" ? 2 : l === "low" ? 1 : 0;
+  if (filled === 0) return "";
+  return `<span class="confidence">${"★".repeat(filled)}${"☆".repeat(3 - filled)}</span>`;
+}
+
+let allTips = [];
+async function shareTip(id) {
+  const t = allTips.find((x) => x.id === id);
+  if (!t) return;
+  const text = `🎯 ${t.category ? t.category + " — " : ""}${t.match}\n${t.pick}\n💰 Odds: ${t.odds}\n\nMore tips: ${location.href.split("#")[0]}`;
+  if (navigator.share) {
+    try { await navigator.share({ text }); } catch (e) {}
+  } else {
+    try {
+      await navigator.clipboard.writeText(text);
+      alert("Copied to clipboard — paste it anywhere to share.");
+    } catch (e) {
+      window.prompt("Copy this to share:", text);
+    }
+  }
+}
+
+function countUp(el, target, suffix) {
+  const start = 0;
+  const duration = 600;
+  const startTime = performance.now();
+  function step(now) {
+    const progress = Math.min((now - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    el.textContent = Math.round(start + (target - start) * eased) + (suffix || "");
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function renderSpotlight(tips) {
+  const wrap = document.getElementById("spotlight-wrap");
+  const featured = tips.find((t) => t.status === "pending");
+  if (!featured) { wrap.innerHTML = ""; return; }
+  const timing = timeUntil(featured.kickoff);
+  wrap.innerHTML = `
+    <div class="spotlight">
+      <span class="spotlight-badge">⭐ Tip of the Day</span>
+      <div class="spotlight-top">
+        <div>
+          ${featured.category ? `<span class="tip-cat">${categoryIcon(featured.category)} ${featured.category}</span>` : ""}
+          <div class="spotlight-match">${featured.match || ""}</div>
+          <div class="spotlight-pick">${featured.pick || ""}</div>
+          ${confidenceStars(featured.confidence)}
+        </div>
+        <div>
+          <div class="spotlight-odds">${featured.odds || ""}</div>
+          <div class="spotlight-odds-label">ODDS</div>
+        </div>
+      </div>
+      ${timing ? `<div class="spotlight-meta">${timing}</div>` : ""}
+    </div>`;
+}
+
+function renderYesterdayBanner(tips) {
+  const wrap = document.getElementById("yesterday-wrap");
+  const y = new Date();
+  y.setDate(y.getDate() - 1);
+  const yStr = y.toISOString().slice(0, 10);
+  const yTips = tips.filter((t) => t.date === yStr && (t.status === "won" || t.status === "lost"));
+  if (yTips.length === 0) { wrap.innerHTML = ""; return; }
+  const won = yTips.filter((t) => t.status === "won").length;
+  wrap.innerHTML = `<div class="yesterday-banner">📅 Yesterday: <b>${won}/${yTips.length} won</b> ${won === yTips.length ? "🔥" : won === 0 ? "" : "✅"}</div>`;
+}
+
+function render(tips) {
+  allTips = tips;
+  const pendingTips = tips.filter((t) => t.status === "pending");
+  renderSpotlight(pendingTips);
+  renderYesterdayBanner(tips);
+  const categories = ["All", ...new Set(pendingTips.map((t) => t.category).filter(Boolean))]
+    .sort((a, b) => {
+      if (a === "All") return -1;
+      if (b === "All") return 1;
+      const na = parseFloat(a), nb = parseFloat(b);
+      if (isNaN(na) || isNaN(nb)) return a.localeCompare(b);
+      return na - nb;
+    });
+  const filtersEl = document.getElementById("filters");
+  filtersEl.innerHTML = "";
+  let active = "All";
+
+  function draw() {
+    const list = (active === "All" ? pendingTips : pendingTips.filter((t) => t.category === active))
+      .slice()
+      .sort((a, b) => {
+        const oa = parseFloat(a.odds);
+        const ob = parseFloat(b.odds);
+        const va = isNaN(oa) ? Infinity : oa;
+        const vb = isNaN(ob) ? Infinity : ob;
+        return va - vb;
+      });
+    const listEl = document.getElementById("tips-list");
+    if (list.length === 0) {
+      listEl.innerHTML = `<div class="empty">No pending tips right now — check back soon.</div>`;
+      return;
+    }
+    listEl.innerHTML = list.map((t) => {
+      const timing = timeUntil(t.kickoff) || "";
+      return `
+        <div class="tip-card">
+          <div class="tip-top">
+            <div>
+              ${t.category ? `<span class="tip-cat">${categoryIcon(t.category)} ${t.category}</span>` : ""}
+              <div class="tip-match">${t.match || ""}</div>
+              <div class="tip-pick">${t.pick || ""}</div>
+              ${confidenceStars(t.confidence)}
+            </div>
+            <div class="tip-odds">${t.odds || ""}</div>
+          </div>
+          <div class="tip-meta">
+            <span>${timing}</span>
+            <span style="display:flex; align-items:center; gap:8px;">
+              <button class="share-btn" onclick="shareTip('${t.id}')">Share</button>
+              <span class="status-pill status-pending">Pending</span>
+            </span>
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  categories.forEach((cat) => {
+    const btn = document.createElement("button");
+    btn.className = "filter-btn" + (cat === "All" ? " active" : "");
+    btn.textContent = cat;
+    btn.onclick = () => {
+      active = cat;
+      [...filtersEl.children].forEach((b) => b.classList.toggle("active", b === btn));
+      draw();
+    };
+    filtersEl.appendChild(btn);
+  });
+
+  draw();
+
+  // Record strip stats come from all settled tips (site-wide history), not just what's shown above
+  const settled = tips.filter((t) => t.status === "won" || t.status === "lost")
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  const wins = settled.filter((t) => t.status === "won").length;
+  const winRate = settled.length ? Math.round((wins / settled.length) * 100) : null;
+
+  document.getElementById("stat-winrate").textContent = winRate !== null ? "0%" : "—";
+  document.getElementById("stat-total").textContent = settled.length ? "0" : "—";
+  if (winRate !== null) countUp(document.getElementById("stat-winrate"), winRate, "%");
+  if (settled.length) countUp(document.getElementById("stat-total"), settled.length, "");
+
+  let streak = 0, streakType = null;
+  for (const t of settled) {
+    if (streakType === null) { streakType = t.status; streak = 1; }
+    else if (t.status === streakType) streak++;
+    else break;
+  }
+  document.getElementById("stat-streak").textContent = streak
+    ? `${streak} ${streakType === "won" ? "W" : "L"}`
+    : "—";
+}
+
+async function loadTips() {
+  try {
+    const res = await fetch(CONFIG.DATA_URL, { cache: "no-store" });
+    if (!res.ok) throw new Error("not found");
+    const tips = await res.json();
+    document.getElementById("last-updated").innerHTML =
+      `<span class="dot"></span> Updated ${new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`;
+    if (!Array.isArray(tips) || tips.length === 0) {
+      document.getElementById("tips-list").innerHTML =
+        `<div class="empty">No tips posted yet — check back soon.</div>`;
+      document.getElementById("filters").innerHTML = "";
+      document.getElementById("record-strip").style.display = "none";
+      document.getElementById("spotlight-wrap").innerHTML = "";
+      document.getElementById("yesterday-wrap").innerHTML = "";
+      return;
+    }
+    document.getElementById("record-strip").style.display = "";
+    render(tips);
+  } catch (e) {
+    document.getElementById("tips-list").innerHTML =
+      `<div class="empty">No tips posted yet — check back soon.</div>`;
+    document.getElementById("filters").innerHTML = "";
+    document.getElementById("spotlight-wrap").innerHTML = "";
+    document.getElementById("yesterday-wrap").innerHTML = "";
+  }
+}
+
+loadTips();
+// Refresh every 3 minutes so kickoff countdowns and new tips stay current
+setInterval(loadTips, 180000);
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js").catch(() => {});
+}
+</script>
+</body>
+</html>

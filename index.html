@@ -8,6 +8,10 @@
 <meta name="theme-color" content="#0E1B15">
 <meta property="og:title" content="SureOdds Hub — Daily Sure Tips">
 <meta property="og:description" content="Daily sure tips and 2odds, curated and tracked in the open.">
+<meta property="og:image" content="og-image.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="og-image.png">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230E1B15' stroke='%23E8B94B' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='%23E8B94B' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='5' fill='%23E8B94B'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -98,6 +102,43 @@
   .faq-item[open] summary::after{content:"–";}
   .faq-item p{color:var(--text-dim); font-size:0.88rem; line-height:1.6; margin:0 0 14px;}
 
+  @keyframes fadeSlideIn{
+    from{opacity:0; transform:translateY(10px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+  @keyframes pulse{
+    0%,100%{opacity:0.55;} 50%{opacity:1;}
+  }
+  .tip-card{animation:fadeSlideIn 0.35s ease both;}
+  .tip-card:nth-child(1){animation-delay:0.02s;}
+  .tip-card:nth-child(2){animation-delay:0.06s;}
+  .tip-card:nth-child(3){animation-delay:0.10s;}
+  .tip-card:nth-child(4){animation-delay:0.14s;}
+  .tip-card:nth-child(5){animation-delay:0.18s;}
+  .tip-card{transition:transform 0.15s ease, border-color 0.15s ease;}
+  .tip-card:hover{transform:translateY(-2px); border-color:#3A5C46;}
+  .spotlight{animation:fadeSlideIn 0.4s ease both;}
+  .follow-btn, .cta-small, .filter-btn{transition:transform 0.12s ease, opacity 0.12s ease;}
+  .follow-btn:active, .cta-small:active{transform:scale(0.96);}
+  .filter-btn:hover{border-color:var(--gold); color:var(--text);}
+
+  .skeleton-card{
+    background:var(--bg-card); border:1px solid var(--line); border-radius:10px;
+    padding:14px 16px; margin-bottom:10px;
+  }
+  .skeleton-line{
+    height:14px; border-radius:4px; background:var(--line);
+    animation:pulse 1.3s ease-in-out infinite;
+  }
+  .skeleton-line.w60{width:60%;}
+  .skeleton-line.w40{width:40%; margin-top:8px;}
+  .skeleton-line.w20{width:20%; margin-top:8px; float:right;}
+
+  .last-updated{color:#6C8B7A; font-size:0.72rem; margin-top:8px; display:flex; align-items:center; gap:5px;}
+  .last-updated .dot{width:6px; height:6px; border-radius:50%; background:var(--green); display:inline-block;}
+
+  .cat-icon{display:inline-flex; vertical-align:-3px; margin-right:4px;}
+
   .filters{display:flex; gap:8px; overflow-x:auto; padding:18px 0 4px; scrollbar-width:none;}
   .filters::-webkit-scrollbar{display:none;}
   .filter-btn{
@@ -178,6 +219,7 @@
     <div class="date" id="today-date"></div>
     <h1>Today's sure tips, no fluff.</h1>
     <p class="lede">Every pick posted here is tracked publicly — wins and losses both. Filter by odds category below.</p>
+    <div class="last-updated" id="last-updated"></div>
 
     <div class="record-strip" id="record-strip">
       <div class="stat"><div class="num win" id="stat-winrate">—</div><div class="label">Win rate</div></div>
@@ -191,7 +233,8 @@
   <div class="filters" id="filters"></div>
 
   <div class="tips-list" id="tips-list">
-    <div class="empty">Loading today's tips…</div>
+    <div class="skeleton-card"><div class="skeleton-line w20"></div><div class="skeleton-line w60"></div><div class="skeleton-line w40"></div></div>
+    <div class="skeleton-card"><div class="skeleton-line w20"></div><div class="skeleton-line w60"></div><div class="skeleton-line w40"></div></div>
   </div>
 
   <section class="track">
@@ -252,8 +295,8 @@
    ============================================================ */
 const CONFIG = {
   DATA_URL: "./data.json",
-  TELEGRAM_URL: "https://t.me/yourchannel",
-  WHATSAPP_URL: "https://whatsapp.com/channel/yourchannel",
+  TELEGRAM_URL: "https://t.me/sureoddsshub",
+  WHATSAPP_URL: "https://whatsapp.com/channel/0029Vb9NBdMBvvsXZM8hvR21",
 };
 
 document.getElementById("today-date").textContent = new Date().toLocaleDateString(undefined, {
@@ -272,6 +315,36 @@ function timeUntil(kickoffStr) {
   return h > 0 ? `Kicks off in ${h}h ${m}m` : `Kicks off in ${m}m`;
 }
 
+const CATEGORY_ICONS = [
+  { match: /foot|soccer|epl|premier|league|uefa|champions/i, icon: "⚽" },
+  { match: /basket|nba/i, icon: "🏀" },
+  { match: /tennis/i, icon: "🎾" },
+  { match: /vip|premium/i, icon: "⭐" },
+  { match: /american football|nfl/i, icon: "🏈" },
+  { match: /cricket/i, icon: "🏏" },
+  { match: /rugby/i, icon: "🏉" },
+  { match: /hockey|nhl/i, icon: "🏒" },
+  { match: /boxing|mma|ufc/i, icon: "🥊" },
+];
+function categoryIcon(category) {
+  if (!category) return "";
+  const found = CATEGORY_ICONS.find((c) => c.match.test(category));
+  return found ? found.icon : "🎯";
+}
+
+function countUp(el, target, suffix) {
+  const start = 0;
+  const duration = 600;
+  const startTime = performance.now();
+  function step(now) {
+    const progress = Math.min((now - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    el.textContent = Math.round(start + (target - start) * eased) + (suffix || "");
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
 function renderSpotlight(tips) {
   const wrap = document.getElementById("spotlight-wrap");
   const featured = tips.find((t) => t.status === "pending");
@@ -282,7 +355,7 @@ function renderSpotlight(tips) {
       <span class="spotlight-badge">⭐ Tip of the Day</span>
       <div class="spotlight-top">
         <div>
-          ${featured.category ? `<span class="tip-cat">${featured.category}</span>` : ""}
+          ${featured.category ? `<span class="tip-cat">${categoryIcon(featured.category)} ${featured.category}</span>` : ""}
           <div class="spotlight-match">${featured.match || ""}</div>
           <div class="spotlight-pick">${featured.pick || ""}</div>
         </div>
@@ -317,7 +390,7 @@ function render(tips) {
         <div class="tip-card">
           <div class="tip-top">
             <div>
-              ${t.category ? `<span class="tip-cat">${t.category}</span>` : ""}
+              ${t.category ? `<span class="tip-cat">${categoryIcon(t.category)} ${t.category}</span>` : ""}
               <div class="tip-match">${t.match || ""}</div>
               <div class="tip-pick">${t.pick || ""}</div>
             </div>
@@ -351,8 +424,10 @@ function render(tips) {
   const wins = settled.filter((t) => t.status === "won").length;
   const winRate = settled.length ? Math.round((wins / settled.length) * 100) : null;
 
-  document.getElementById("stat-winrate").textContent = winRate !== null ? winRate + "%" : "—";
-  document.getElementById("stat-total").textContent = settled.length || "—";
+  document.getElementById("stat-winrate").textContent = winRate !== null ? "0%" : "—";
+  document.getElementById("stat-total").textContent = settled.length ? "0" : "—";
+  if (winRate !== null) countUp(document.getElementById("stat-winrate"), winRate, "%");
+  if (settled.length) countUp(document.getElementById("stat-total"), settled.length, "");
 
   let streak = 0, streakType = null;
   for (const t of settled) {
@@ -383,6 +458,8 @@ async function loadTips() {
     const res = await fetch(CONFIG.DATA_URL, { cache: "no-store" });
     if (!res.ok) throw new Error("not found");
     const tips = await res.json();
+    document.getElementById("last-updated").innerHTML =
+      `<span class="dot"></span> Updated ${new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`;
     if (!Array.isArray(tips) || tips.length === 0) {
       document.getElementById("tips-list").innerHTML =
         `<div class="empty">No tips posted yet — check back soon.</div>`;

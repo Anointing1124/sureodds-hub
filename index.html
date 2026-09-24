@@ -376,7 +376,15 @@ function render(tips) {
   let active = "All";
 
   function draw() {
-    const list = active === "All" ? tips : tips.filter((t) => t.category === active);
+    const list = (active === "All" ? tips : tips.filter((t) => t.category === active))
+      .slice()
+      .sort((a, b) => {
+        const oa = parseFloat(a.odds);
+        const ob = parseFloat(b.odds);
+        const va = isNaN(oa) ? Infinity : oa;
+        const vb = isNaN(ob) ? Infinity : ob;
+        return va - vb;
+      });
     const listEl = document.getElementById("tips-list");
     if (list.length === 0) {
       listEl.innerHTML = `<div class="empty">No tips in this category yet — check back soon.</div>`;

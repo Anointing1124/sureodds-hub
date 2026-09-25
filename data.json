@@ -58,13 +58,16 @@
   {
     "id": "mug4nnf6",
     "date": "2026-09-24",
-    "category": "1.6",
+    "category": "1.4",
     "match": "Turkiye vs France",
     "pick": "Away Shots on Target Over 5.5",
-    "odds": "1.61",
+    "odds": "1.39",
     "kickoff": "2026-09-25T19:45",
     "status": "pending",
-    "confidence": "high"
+    "confidence": "high",
+    "sport": "Football",
+    "league": "UEFA National League",
+    "bookingCode": "U7BP1Q"
   },
   {
     "id": "mug4iamm",

@@ -36,7 +36,10 @@
     "odds": "1.78",
     "confidence": "medium",
     "kickoff": "2026-09-25T17:00",
-    "status": "pending"
+    "status": "pending",
+    "sport": "Football",
+    "league": "UEFA National League",
+    "bookingCode": "RNFQ47"
   },
   {
     "id": "mug4t8hb",

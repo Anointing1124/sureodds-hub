@@ -8,7 +8,10 @@
     "odds": "1.4",
     "confidence": "high",
     "kickoff": "2026-09-25T19:45",
-    "status": "pending"
+    "status": "pending",
+    "sport": "Football",
+    "league": "UEFA National League",
+    "bookingCode": "HXBN0Y"
   },
   {
     "id": "mug5zvtv",

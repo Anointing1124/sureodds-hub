@@ -116,6 +116,23 @@
 
     <div class="card">
       <h2 id="form-title">Add a new prediction</h2>
+      <div class="row2">
+        <div>
+          <label>Sport</label>
+          <select id="f-sport">
+            <option value="Football">⚽ Football</option>
+            <option value="Basketball">🏀 Basketball</option>
+            <option value="Tennis">🎾 Tennis</option>
+            <option value="Boxing/MMA">🥊 Boxing/MMA</option>
+            <option value="Cricket">🏏 Cricket</option>
+            <option value="Other">🎯 Other</option>
+          </select>
+        </div>
+        <div>
+          <label>League/Competition</label>
+          <input id="f-league" placeholder="e.g. Premier League">
+        </div>
+      </div>
       <label>Match</label>
       <input id="f-match" placeholder="e.g. Arsenal vs Chelsea">
       <label>Pick</label>
@@ -145,6 +162,9 @@
           <input id="f-kickoff" type="datetime-local">
         </div>
       </div>
+      <label>SportyBet Booking Code (optional)</label>
+      <input id="f-bookingcode" placeholder="e.g. SB7X9K2">
+      <small class="hint">Book the slip in the SportyBet app first, then paste the code it gives you here.</small>
       <button class="btn-primary" id="submit-btn" onclick="addTip()">Publish to site</button>
       <button class="btn-secondary" id="cancel-edit-btn" onclick="cancelEdit()" style="display:none; width:100%; margin-top:8px;">Cancel edit</button>
       <div id="add-msg" class="status-msg"></div>
@@ -246,12 +266,15 @@ function editTip(id) {
   const t = currentTips.find((x) => x.id === id);
   if (!t) return;
   editingId = id;
+  document.getElementById("f-sport").value = t.sport || "Football";
+  document.getElementById("f-league").value = t.league || "";
   document.getElementById("f-match").value = t.match || "";
   document.getElementById("f-pick").value = t.pick || "";
   document.getElementById("f-odds").value = t.odds || "";
   document.getElementById("f-category").value = t.category || "";
   document.getElementById("f-confidence").value = t.confidence || "";
   document.getElementById("f-kickoff").value = t.kickoff || "";
+  document.getElementById("f-bookingcode").value = t.bookingCode || "";
   document.getElementById("form-title").textContent = "Edit prediction";
   document.getElementById("submit-btn").textContent = "Update prediction";
   document.getElementById("cancel-edit-btn").style.display = "block";
@@ -260,7 +283,8 @@ function editTip(id) {
 
 function cancelEdit() {
   editingId = null;
-  ["f-match", "f-pick", "f-odds", "f-category", "f-kickoff"].forEach((id) => (document.getElementById(id).value = ""));
+  ["f-league", "f-match", "f-pick", "f-odds", "f-category", "f-kickoff", "f-bookingcode"].forEach((id) => (document.getElementById(id).value = ""));
+  document.getElementById("f-sport").value = "Football";
   document.getElementById("f-confidence").value = "";
   document.getElementById("form-title").textContent = "Add a new prediction";
   document.getElementById("submit-btn").textContent = "Publish to site";
@@ -285,12 +309,15 @@ async function postToTelegram(cfg, text) {
 
 async function addTip() {
   const cfg = getConfig();
+  const sport = document.getElementById("f-sport").value;
+  const league = document.getElementById("f-league").value.trim();
   const match = document.getElementById("f-match").value.trim();
   const pick = document.getElementById("f-pick").value.trim();
   const odds = document.getElementById("f-odds").value.trim();
   const category = document.getElementById("f-category").value.trim();
   const confidence = document.getElementById("f-confidence").value;
   const kickoff = document.getElementById("f-kickoff").value;
+  const bookingCode = document.getElementById("f-bookingcode").value.trim();
 
   if (!match || !pick) {
     showMsg("add-msg", "Match and pick are required.", "err");
@@ -305,7 +332,7 @@ async function addTip() {
     if (isEdit) {
       const idx = tips.findIndex((t) => t.id === editingId);
       if (idx === -1) throw new Error("Prediction no longer exists");
-      tips[idx] = { ...tips[idx], match, pick, odds, category, confidence, kickoff: kickoff || "" };
+      tips[idx] = { ...tips[idx], sport, league, match, pick, odds, category, confidence, kickoff: kickoff || "", bookingCode };
       await githubSaveFile(cfg, tips, sha, `Edit prediction: ${match}`);
       showMsg("add-msg", "Updated!", "ok");
       cancelEdit();
@@ -316,7 +343,7 @@ async function addTip() {
     const newTip = {
       id: Date.now().toString(36),
       date: new Date().toISOString().slice(0, 10),
-      category, match, pick, odds, confidence,
+      sport, league, category, match, pick, odds, confidence, bookingCode,
       kickoff: kickoff || "",
       status: "pending",
     };
@@ -326,7 +353,7 @@ async function addTip() {
     let tgNote = "";
     try {
       const kickoffText = kickoff ? new Date(kickoff).toLocaleString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" }) : "";
-      const msg = `🎯 <b>New Prediction${category ? " — " + category : ""}</b>\n\n<b>${match}</b>\n${pick}\n\n💰 Odds: <b>${odds}</b>${kickoffText ? `\n⏰ ${kickoffText}` : ""}`;
+      const msg = `🎯 <b>New Prediction${category ? " — " + category : ""}</b>\n${sport ? `${sport}${league ? " · " + league : ""}\n` : ""}\n<b>${match}</b>\n${pick}\n\n💰 Odds: <b>${odds}</b>${kickoffText ? `\n⏰ ${kickoffText}` : ""}${bookingCode ? `\n🎫 SportyBet Code: <b>${bookingCode}</b>` : ""}`;
       const tgResult = await postToTelegram(cfg, msg);
       if (!tgResult.skipped) tgNote = " Posted to Telegram too.";
     } catch (tgErr) {
@@ -334,10 +361,11 @@ async function addTip() {
     }
 
     showMsg("add-msg", "Published! It'll be live on the site within a minute." + tgNote, "ok");
-    ["f-match", "f-pick", "f-odds", "f-category", "f-kickoff"].forEach(
+    ["f-league", "f-match", "f-pick", "f-odds", "f-category", "f-kickoff", "f-bookingcode"].forEach(
       (id) => (document.getElementById(id).value = "")
     );
     document.getElementById("f-confidence").value = "";
+    document.getElementById("f-sport").value = "Football";
     loadTipsList();
   } catch (e) {
     showMsg("add-msg", "Failed: " + e.message, "err");
@@ -395,8 +423,8 @@ async function loadTipsList() {
       <div class="tip-row">
         <div class="tip-row-top">
           <div>
-            <div class="tip-row-title">${t.match}</div>
-            <div class="tip-row-sub">${t.pick} ${t.category ? "· " + t.category : ""}</div>
+            <div class="tip-row-title">${t.sport ? t.sport + " — " : ""}${t.match}</div>
+            <div class="tip-row-sub">${t.pick} ${t.category ? "· " + t.category : ""} ${t.league ? "· " + t.league : ""}${t.bookingCode ? " · 🎫 " + t.bookingCode : ""}</div>
           </div>
           <div class="tip-row-odds">${t.odds || ""}</div>
         </div>

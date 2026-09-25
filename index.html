@@ -168,10 +168,27 @@
     padding:14px 16px;
   }
   .tip-top{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
+  .badge-row{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;}
   .tip-cat{
     display:inline-block; font-size:0.7rem; color:var(--gold); border:1px solid #4A3B1A;
-    background:#2A2211; padding:2px 8px; border-radius:4px; margin-bottom:6px;
+    background:#2A2211; padding:2px 8px; border-radius:4px;
   }
+  .sport-badge{
+    display:inline-block; font-size:0.7rem; color:var(--green); border:1px solid #1E4A34;
+    background:#0F2A1E; padding:2px 8px; border-radius:4px;
+  }
+  .tip-league{color:var(--text-dim); font-size:0.78rem; margin-top:2px; margin-bottom:2px;}
+  .booking-code{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:#12261C; border:1px dashed #2E5A42; border-radius:8px;
+    padding:8px 12px; margin-top:10px; font-size:0.82rem;
+  }
+  .booking-code b{color:var(--gold); font-family:'Oswald',sans-serif; letter-spacing:0.5px;}
+  .copy-btn{
+    background:var(--green); color:#062015; border:none; border-radius:6px;
+    padding:5px 12px; font-size:0.72rem; font-weight:700; cursor:pointer; font-family:inherit;
+  }
+  .copy-btn:active{transform:scale(0.94);}
   .tip-match{font-size:1.02rem; font-weight:600;}
   .tip-pick{color:var(--text-dim); font-size:0.9rem; margin-top:3px;}
   .tip-odds{font-family:'Oswald',sans-serif; font-size:1.3rem; color:var(--gold); font-weight:600; text-align:right;}
@@ -321,21 +338,25 @@ function timeUntil(kickoffStr) {
   return h > 0 ? `Kicks off in ${h}h ${m}m` : `Kicks off in ${m}m`;
 }
 
-const CATEGORY_ICONS = [
-  { match: /foot|soccer|epl|premier|league|uefa|champions/i, icon: "⚽" },
-  { match: /basket|nba/i, icon: "🏀" },
-  { match: /tennis/i, icon: "🎾" },
-  { match: /vip|premium/i, icon: "⭐" },
-  { match: /american football|nfl/i, icon: "🏈" },
-  { match: /cricket/i, icon: "🏏" },
-  { match: /rugby/i, icon: "🏉" },
-  { match: /hockey|nhl/i, icon: "🏒" },
-  { match: /boxing|mma|ufc/i, icon: "🥊" },
-];
-function categoryIcon(category) {
-  if (!category) return "";
-  const found = CATEGORY_ICONS.find((c) => c.match.test(category));
-  return found ? found.icon : "🎯";
+const SPORT_ICONS = {
+  "Football": "⚽",
+  "Basketball": "🏀",
+  "Tennis": "🎾",
+  "Boxing/MMA": "🥊",
+  "Cricket": "🏏",
+  "Other": "🎯",
+};
+function sportIcon(sport) {
+  return SPORT_ICONS[sport] || "🎯";
+}
+
+async function copyCode(code) {
+  try {
+    await navigator.clipboard.writeText(code);
+    alert("Booking code copied! Paste it into SportyBet's booking code field.");
+  } catch (e) {
+    window.prompt("Copy this SportyBet booking code:", code);
+  }
 }
 
 function confidenceStars(level) {
@@ -350,7 +371,7 @@ let allTips = [];
 async function shareTip(id) {
   const t = allTips.find((x) => x.id === id);
   if (!t) return;
-  const text = `🎯 ${t.category ? t.category + " — " : ""}${t.match}\n${t.pick}\n💰 Odds: ${t.odds}\n\nMore tips: ${location.href.split("#")[0]}`;
+  const text = `${t.sport ? sportIcon(t.sport) + " " + t.sport + " " : "🎯 "}${t.league ? "· " + t.league + "\n" : "\n"}${t.match}\n${t.pick}\n💰 Odds: ${t.odds}${t.bookingCode ? `\n🎫 SportyBet Code: ${t.bookingCode}` : ""}\n\nMore tips: ${location.href.split("#")[0]}`;
   if (navigator.share) {
     try { await navigator.share({ text }); } catch (e) {}
   } else {
@@ -386,7 +407,11 @@ function renderSpotlight(tips) {
       <span class="spotlight-badge">⭐ Tip of the Day</span>
       <div class="spotlight-top">
         <div>
-          ${featured.category ? `<span class="tip-cat">${categoryIcon(featured.category)} ${featured.category}</span>` : ""}
+          <div class="badge-row">
+            ${featured.sport ? `<span class="sport-badge">${sportIcon(featured.sport)} ${featured.sport}</span>` : ""}
+            ${featured.category ? `<span class="tip-cat">${featured.category}</span>` : ""}
+          </div>
+          ${featured.league ? `<div class="tip-league">${featured.league}</div>` : ""}
           <div class="spotlight-match">${featured.match || ""}</div>
           <div class="spotlight-pick">${featured.pick || ""}</div>
           ${confidenceStars(featured.confidence)}
@@ -397,6 +422,7 @@ function renderSpotlight(tips) {
         </div>
       </div>
       ${timing ? `<div class="spotlight-meta">${timing}</div>` : ""}
+      ${featured.bookingCode ? `<div class="booking-code"><span>🎫 SportyBet: <b>${featured.bookingCode}</b></span><button class="copy-btn" onclick="copyCode('${featured.bookingCode}')">Copy</button></div>` : ""}
     </div>`;
 }
 
@@ -449,7 +475,11 @@ function render(tips) {
         <div class="tip-card">
           <div class="tip-top">
             <div>
-              ${t.category ? `<span class="tip-cat">${categoryIcon(t.category)} ${t.category}</span>` : ""}
+              <div class="badge-row">
+                ${t.sport ? `<span class="sport-badge">${sportIcon(t.sport)} ${t.sport}</span>` : ""}
+                ${t.category ? `<span class="tip-cat">${t.category}</span>` : ""}
+              </div>
+              ${t.league ? `<div class="tip-league">${t.league}</div>` : ""}
               <div class="tip-match">${t.match || ""}</div>
               <div class="tip-pick">${t.pick || ""}</div>
               ${confidenceStars(t.confidence)}
@@ -463,6 +493,7 @@ function render(tips) {
               <span class="status-pill status-pending">Pending</span>
             </span>
           </div>
+          ${t.bookingCode ? `<div class="booking-code"><span>🎫 SportyBet: <b>${t.bookingCode}</b></span><button class="copy-btn" onclick="copyCode('${t.bookingCode}')">Copy</button></div>` : ""}
         </div>`;
     }).join("");
   }

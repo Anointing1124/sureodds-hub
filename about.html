@@ -107,6 +107,15 @@
 </div>
 
 <script>
+const SPORT_ICONS = {
+  "Football": "⚽",
+  "Basketball": "🏀",
+  "Tennis": "🎾",
+  "Boxing/MMA": "🥊",
+  "Cricket": "🏏",
+  "Other": "🎯",
+};
+
 async function load() {
   try {
     const res = await fetch("./data.json", { cache: "no-store" });
@@ -158,9 +167,11 @@ function render(tips) {
         ${sorted.map((t) => {
           const cls = t.status === "won" ? "r-won" : t.status === "lost" ? "r-lost" : "r-pending";
           const label = t.status === "won" ? "Won" : t.status === "lost" ? "Lost" : "Pending";
+          const sportPrefix = t.sport ? SPORT_ICONS[t.sport] || "🎯" : "";
+          const leagueTag = t.league ? ` <span style="color:var(--text-dim); font-size:0.78rem;">(${t.league})</span>` : "";
           return `<tr>
             <td style="color:var(--text-dim);">${t.date || ""}</td>
-            <td>${t.match || ""}${t.pick ? " — " + t.pick : ""}</td>
+            <td>${sportPrefix ? sportPrefix + " " : ""}${t.match || ""}${t.pick ? " — " + t.pick : ""}${leagueTag}</td>
             <td>${t.odds || ""}</td>
             <td class="${cls}">${label}</td>
           </tr>`;

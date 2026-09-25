@@ -49,7 +49,11 @@
     "pick": "Total Shots Over 23.5",
     "odds": "1.49",
     "kickoff": "2026-09-25T19:45",
-    "status": "pending"
+    "status": "pending",
+    "sport": "Football",
+    "league": "UEFA National League",
+    "confidence": "",
+    "bookingCode": "N7KWWB"
   },
   {
     "id": "mug4nnf6",

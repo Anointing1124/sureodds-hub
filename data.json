@@ -77,7 +77,11 @@
     "pick": "Away Team Offside Over 1.5",
     "odds": "2.26",
     "kickoff": "2026-09-25T19:45",
-    "status": "pending"
+    "status": "pending",
+    "sport": "Football",
+    "league": "UEFA National League",
+    "confidence": "",
+    "bookingCode": "WZL74R"
   },
   {
     "id": "muevz4aa",

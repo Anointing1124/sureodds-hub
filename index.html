@@ -154,6 +154,30 @@
 
   .cat-icon{display:inline-flex; vertical-align:-3px; margin-right:4px;}
 
+  section.live{padding:6px 0 4px;}
+  .live-header{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
+  .live-header h2{font-size:1.05rem;}
+  .live-dot{width:8px; height:8px; border-radius:50%; background:var(--red); animation:pulse 1.2s ease-in-out infinite;}
+  .live-card{
+    background:var(--bg-card); border:1px solid #3A2020; border-radius:10px;
+    padding:14px 16px; margin-bottom:10px;
+  }
+  .live-league{color:var(--text-dim); font-size:0.72rem; margin-bottom:8px; display:flex; justify-content:space-between;}
+  .live-minute{color:var(--red); font-weight:700;}
+  .live-teams{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .live-team{display:flex; align-items:center; gap:8px; flex:1; min-width:0;}
+  .live-team img{width:22px; height:22px; object-fit:contain; flex:0 0 auto;}
+  .live-team span{font-size:0.9rem; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .live-score{font-family:'Oswald',sans-serif; font-size:1.3rem; font-weight:700; color:var(--gold); padding:0 10px; flex:0 0 auto;}
+  .live-stats{margin-top:12px; padding-top:10px; border-top:1px solid var(--line);}
+  .live-stat-row{display:flex; align-items:center; gap:8px; font-size:0.72rem; color:var(--text-dim); margin-bottom:5px;}
+  .live-stat-row .val{width:28px; text-align:center; flex:0 0 auto; color:var(--text);}
+  .live-stat-row .bar-wrap{flex:1; height:5px; background:var(--line); border-radius:3px; overflow:hidden; display:flex;}
+  .live-stat-row .bar-a{background:var(--gold); height:100%;}
+  .live-stat-row .bar-b{background:var(--green); height:100%;}
+  .live-stat-row .label{width:64px; text-align:center; flex:0 0 auto; font-size:0.68rem;}
+  .live-more{display:block; text-align:center; color:var(--gold); font-size:0.78rem; text-decoration:none; margin-top:10px;}
+
   .filters{display:flex; gap:8px; overflow-x:auto; padding:18px 0 4px; scrollbar-width:none;}
   .filters::-webkit-scrollbar{display:none;}
   .filter-btn{
@@ -246,6 +270,8 @@
 </header>
 
 <div class="wrap">
+
+  <div id="live-wrap"></div>
 
   <section class="hero">
     <div class="date" id="today-date"></div>
@@ -533,6 +559,103 @@ function render(tips) {
     ? `${streak} ${streakType === "won" ? "W" : "L"}`
     : "—";
 }
+
+const LIVE_LEAGUES = [
+  "eng.1", "esp.1", "ita.1", "ger.1", "fra.1",
+  "uefa.champions", "uefa.europa", "uefa.nations",
+];
+
+function statBar(homeVal, awayVal, label) {
+  const h = parseFloat(homeVal) || 0;
+  const a = parseFloat(awayVal) || 0;
+  const total = h + a || 1;
+  const hPct = (h / total) * 100;
+  return `
+    <div class="live-stat-row">
+      <span class="val">${homeVal ?? "-"}</span>
+      <div class="bar-wrap"><div class="bar-a" style="width:${hPct}%"></div><div class="bar-b" style="width:${100 - hPct}%"></div></div>
+      <span class="val">${awayVal ?? "-"}</span>
+    </div>
+    <div style="text-align:center; font-size:0.65rem; color:var(--text-dim); margin:-3px 0 8px;">${label}</div>`;
+}
+
+function findStat(stats, name) {
+  const s = (stats || []).find((x) => x.name === name);
+  return s ? s.displayValue : null;
+}
+
+async function loadLiveScores() {
+  const wrap = document.getElementById("live-wrap");
+  try {
+    // Some leagues (e.g. uefa.nations) return an error without an explicit
+    // date, unlike club leagues which default to the current matchday.
+    // Passing today's UTC date works safely for every league.
+    const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const results = await Promise.allSettled(
+      LIVE_LEAGUES.map((slug) =>
+        fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard?dates=${todayStr}`, { cache: "no-store" })
+          .then((r) => r.json())
+      )
+    );
+
+    let liveEvents = [];
+    results.forEach((r) => {
+      if (r.status === "fulfilled" && r.value && Array.isArray(r.value.events)) {
+        const live = r.value.events.filter((e) => {
+          const comp = e.competitions && e.competitions[0];
+          return comp && comp.status && comp.status.type && comp.status.type.state === "in";
+        });
+        liveEvents = liveEvents.concat(
+          live.map((e) => ({ event: e, league: (r.value.leagues && r.value.leagues[0] && r.value.leagues[0].abbreviation) || "" }))
+        );
+      }
+    });
+
+    if (liveEvents.length === 0) {
+      wrap.innerHTML = "";
+      return;
+    }
+
+    wrap.innerHTML = `
+      <section class="live">
+        <div class="live-header"><span class="live-dot"></span><h2>Live Now</h2></div>
+        ${liveEvents.map(({ event, league }) => {
+          const comp = event.competitions[0];
+          const home = comp.competitors.find((c) => c.homeAway === "home");
+          const away = comp.competitors.find((c) => c.homeAway === "away");
+          const minute = comp.status.displayClock || "";
+          const summaryLink = (event.links && event.links.find((l) => l.rel.includes("summary"))) || null;
+
+          const hPoss = findStat(home.statistics, "possessionPct");
+          const aPoss = findStat(away.statistics, "possessionPct");
+          const hShots = findStat(home.statistics, "totalShots");
+          const aShots = findStat(away.statistics, "totalShots");
+          const hSOT = findStat(home.statistics, "shotsOnTarget");
+          const aSOT = findStat(away.statistics, "shotsOnTarget");
+          const hCorners = findStat(home.statistics, "wonCorners");
+          const aCorners = findStat(away.statistics, "wonCorners");
+
+          return `
+            <div class="live-card">
+              <div class="live-league"><span>${league}</span><span class="live-minute">🔴 ${minute}</span></div>
+              <div class="live-teams">
+                <div class="live-team"><img src="${home.team.logo || ""}" alt="" onerror="this.style.display='none'"><span>${home.team.shortDisplayName || home.team.displayName}</span></div>
+                <div class="live-score">${home.score} - ${away.score}</div>
+                <div class="live-team" style="justify-content:flex-end; text-align:right;"><span>${away.team.shortDisplayName || away.team.displayName}</span><img src="${away.team.logo || ""}" alt="" onerror="this.style.display='none'"></div>
+              </div>
+              ${hPoss && aPoss ? `<div class="live-stats">${statBar(hPoss + "%", aPoss + "%", "Possession")}${statBar(hShots, aShots, "Shots")}${statBar(hSOT, aSOT, "On Target")}${statBar(hCorners, aCorners, "Corners")}</div>` : ""}
+              ${summaryLink ? `<a class="live-more" href="${summaryLink.href}" target="_blank" rel="noopener">Full stats on ESPN →</a>` : ""}
+            </div>`;
+        }).join("")}
+      </section>`;
+  } catch (e) {
+    // Live scores are a bonus feature — fail silently so it never breaks the rest of the page
+    wrap.innerHTML = "";
+  }
+}
+
+loadLiveScores();
+setInterval(loadLiveScores, 60000);
 
 async function loadTips() {
   try {

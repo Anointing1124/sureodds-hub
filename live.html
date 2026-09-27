@@ -91,6 +91,14 @@
   .finished-league{color:var(--text-dim); font-size:0.72rem; margin-bottom:8px;}
 
   .empty{padding:30px 0; color:var(--text-dim); font-size:0.92rem; line-height:1.6; border:1px dashed var(--line); border-radius:10px; text-align:center; margin:14px 0;}
+
+  .date-nav{display:flex; align-items:center; justify-content:space-between; margin:18px 0 4px; gap:10px;}
+  .date-nav-btn{
+    background:var(--bg-card); border:1px solid var(--line); color:var(--text);
+    padding:8px 14px; border-radius:8px; font-size:0.82rem; font-family:inherit; cursor:pointer;
+  }
+  .date-nav-btn:active{transform:scale(0.96);}
+  .date-nav-label{font-family:'Oswald',sans-serif; font-size:0.95rem; font-weight:600; color:var(--gold);}
   .last-updated{color:#6C8B7A; font-size:0.72rem; margin-top:10px; display:flex; align-items:center; gap:5px;}
   .last-updated .dot{width:6px; height:6px; border-radius:50%; background:var(--green); display:inline-block;}
 
@@ -117,12 +125,18 @@
 <div class="wrap">
   <section class="hero">
     <h1>Live Games</h1>
-    <p>Scores and match stats update automatically every minute — EPL, La Liga, Serie A, Bundesliga, Ligue 1, Champions League, Europa League, and UEFA Nations League.</p>
+    <p>Scores, results and full stats across 30+ leagues worldwide — Premier League down to Bolivia's Liga Profesional. Browse any day, past or upcoming.</p>
     <div class="last-updated" id="last-updated"></div>
   </section>
 
+  <div class="date-nav">
+    <button class="date-nav-btn" onclick="changeDate(-1)">‹ Prev</button>
+    <span class="date-nav-label" id="date-label">Today</span>
+    <button class="date-nav-btn" onclick="changeDate(1)">Next ›</button>
+  </div>
+
   <div id="live-wrap">
-    <div class="empty">Loading today's matches…</div>
+    <div class="empty">Loading matches…</div>
   </div>
 
   <footer>
@@ -132,9 +146,53 @@
 
 <script>
 const LIVE_LEAGUES = [
-  "eng.1", "esp.1", "ita.1", "ger.1", "fra.1",
-  "uefa.champions", "uefa.europa", "uefa.nations",
+  // Top European leagues
+  "eng.1", "eng.2", "esp.1", "ita.1", "ger.1", "fra.1", "ned.1", "por.1", "sco.1", "tur.1",
+  // Americas
+  "usa.1", "mex.1", "arg.1", "bra.1", "bra.2", "chi.1", "col.1", "par.1", "per.1", "uru.1", "bol.1", "ecu.1", "ven.1",
+  // Continental club competitions
+  "uefa.champions", "uefa.europa", "uefa.europa.conf",
+  "conmebol.libertadores", "conmebol.sudamericana", "conmebol.recopa",
+  // International
+  "uefa.nations", "caf.nations",
+  "fifa.worldq.uefa", "fifa.worldq.concacaf", "fifa.worldq.afc", "fifa.worldq.caf", "fifa.worldq.conmebol",
 ];
+
+let currentDate = new Date();
+let refreshTimer = null;
+
+function isToday(d) {
+  const t = new Date();
+  return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
+}
+
+function updateDateLabel() {
+  const label = document.getElementById("date-label");
+  if (isToday(currentDate)) {
+    label.textContent = "Today";
+    return;
+  }
+  const t = new Date();
+  const yesterday = new Date(t); yesterday.setDate(t.getDate() - 1);
+  const tomorrow = new Date(t); tomorrow.setDate(t.getDate() + 1);
+  if (currentDate.toDateString() === yesterday.toDateString()) {
+    label.textContent = "Yesterday";
+  } else if (currentDate.toDateString() === tomorrow.toDateString()) {
+    label.textContent = "Tomorrow";
+  } else {
+    label.textContent = currentDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  }
+}
+
+function changeDate(deltaDays) {
+  currentDate.setDate(currentDate.getDate() + deltaDays);
+  updateDateLabel();
+  loadLiveScores();
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+  if (isToday(currentDate)) {
+    refreshTimer = setInterval(loadLiveScores, 45000);
+  }
+}
 
 const extraStatsCache = {}; // eventId -> { offsides: {h,a}, saves: {h,a} } or null if unavailable
 
@@ -258,7 +316,12 @@ function matchCard(event, league, slug, isLive) {
 async function loadLiveScores() {
   const wrap = document.getElementById("live-wrap");
   try {
-    const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    // Note: ESPN dates param uses UTC-based YYYYMMDD; using local date components
+    // here keeps it aligned with what the person actually selected via Prev/Next.
+    const y = currentDate.getFullYear();
+    const m = String(currentDate.getMonth() + 1).padStart(2, "0");
+    const d = String(currentDate.getDate()).padStart(2, "0");
+    const todayStr = `${y}${m}${d}`;
     const results = await Promise.allSettled(
       LIVE_LEAGUES.map((slug) =>
         fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard?dates=${todayStr}`, { cache: "no-store" })
@@ -299,7 +362,7 @@ async function loadLiveScores() {
       `<span class="dot"></span> Updated ${new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`;
 
     if (liveEvents.length === 0 && upcomingEvents.length === 0 && finishedEvents.length === 0) {
-      wrap.innerHTML = `<div class="empty">No matches today in the leagues we track — check back tomorrow.</div>`;
+      wrap.innerHTML = `<div class="empty">No matches found for this date in the leagues we track.</div>`;
       return;
     }
 
@@ -311,7 +374,7 @@ async function loadLiveScores() {
 
     const upcomingHtml = upcomingEvents.length === 0 ? "" : `
       <section class="soon">
-        <div class="soon-header"><span>📅</span><h2>Upcoming Today</h2></div>
+        <div class="soon-header"><span>📅</span><h2>${isToday(currentDate) ? "Upcoming Today" : "Fixtures"}</h2></div>
         ${upcomingEvents.map(({ event, league, kickoffMs }) => {
           const comp = event.competitions[0];
           const home = comp.competitors.find((c) => c.homeAway === "home");
@@ -334,7 +397,7 @@ async function loadLiveScores() {
 
     const finishedHtml = finishedEvents.length === 0 ? "" : `
       <section class="finished">
-        <div class="finished-header"><span>✅</span><h2>Finished Today</h2></div>
+        <div class="finished-header"><span>✅</span><h2>${isToday(currentDate) ? "Finished Today" : "Results"}</h2></div>
         ${finishedEvents.map(({ event, league, slug }) => matchCard(event, league, slug, false)).join("")}
       </section>`;
 
@@ -344,8 +407,9 @@ async function loadLiveScores() {
   }
 }
 
+updateDateLabel();
 loadLiveScores();
-setInterval(loadLiveScores, 60000);
+refreshTimer = setInterval(loadLiveScores, 45000);
 </script>
 </body>
 </html>

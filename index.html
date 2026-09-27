@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+  try { if (localStorage.getItem('sureodds_theme') === 'light') document.documentElement.setAttribute('data-theme','light'); } catch(e){}
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SureOdds Hub — Daily Sure Tips</title>
@@ -26,6 +29,14 @@
     --gold:#E8B94B; --green:#2FA972; --red:#E2574C;
     font-size:16px;
   }
+  :root[data-theme="light"]{
+    --bg:#FAF8F2; --bg-elev:#FFFFFF; --bg-card:#FFFFFF;
+    --line:#E4E0D3;
+    --text:#16261C; --text-dim:#66756B;
+    --gold:#B8862A; --green:#1E7A4C; --red:#C0392B;
+  }
+  [data-theme="light"] header.top{background:rgba(250,248,242,0.92);}
+  [data-theme="light"] .theme-toggle-btn{background:#FFFFFF; border-color:var(--line);}
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--text);}
   body{
@@ -56,6 +67,12 @@
     background:var(--green); color:#062015; font-weight:600; font-size:0.82rem;
     padding:8px 14px; border-radius:6px; text-decoration:none; white-space:nowrap;
   }
+  .theme-toggle-btn{
+    background:var(--bg-card); border:1px solid var(--line); color:var(--text);
+    width:32px; height:32px; border-radius:50%; font-size:0.9rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; padding:0; flex:0 0 auto;
+  }
+  .theme-toggle-btn:active{transform:scale(0.92);}
 
   .hero{padding:34px 0 22px;}
   .hero .date{color:var(--text-dim); font-size:0.85rem; margin-bottom:6px;}
@@ -238,17 +255,18 @@
 
 <header class="top">
   <div class="wrap">
-    <div class="brand">
+    <a href="index.html" class="brand" style="text-decoration:none;">
       <svg width="26" height="26" viewBox="0 0 64 64" style="flex:0 0 auto;">
         <circle cx="32" cy="32" r="30" fill="#0E1B15" stroke="#E8B94B" stroke-width="4"/>
         <circle cx="32" cy="32" r="14" fill="none" stroke="#E8B94B" stroke-width="3"/>
         <circle cx="32" cy="32" r="5" fill="#E8B94B"/>
       </svg>
       <span class="mark">SureOdds</span><span class="sub">HUB</span>
-    </div>
-    <div style="display:flex; align-items:center; gap:14px;">
+    </a>
+    <div style="display:flex; align-items:center; gap:12px;">
       <a href="live.html" style="color:var(--text-dim); font-size:0.82rem; text-decoration:none;">Live</a>
       <a href="about.html" style="color:var(--text-dim); font-size:0.82rem; text-decoration:none;">Track Record</a>
+      <button class="theme-toggle-btn" id="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light/dark theme">🌙</button>
       <a class="cta-small" href="#follow">Get tips daily</a>
     </div>
   </div>
@@ -332,6 +350,24 @@ const CONFIG = {
   TELEGRAM_URL: "https://t.me/sureoddsshub",
   WHATSAPP_URL: "https://whatsapp.com/channel/0029Vb9NBdMBvvsXZM8hvR21",
 };
+
+function toggleTheme() {
+  const isLight = document.documentElement.getAttribute("data-theme") === "light";
+  if (isLight) {
+    document.documentElement.removeAttribute("data-theme");
+    localStorage.setItem("sureodds_theme", "dark");
+  } else {
+    document.documentElement.setAttribute("data-theme", "light");
+    localStorage.setItem("sureodds_theme", "light");
+  }
+  updateThemeIcon();
+}
+function updateThemeIcon() {
+  const btn = document.getElementById("theme-toggle");
+  if (!btn) return;
+  btn.textContent = document.documentElement.getAttribute("data-theme") === "light" ? "☀️" : "🌙";
+}
+updateThemeIcon();
 
 document.getElementById("today-date").textContent = new Date().toLocaleDateString(undefined, {
   weekday: "long", year: "numeric", month: "long", day: "numeric",

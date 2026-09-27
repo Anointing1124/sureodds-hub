@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+  try { if (localStorage.getItem('sureodds_theme') === 'light') document.documentElement.setAttribute('data-theme','light'); } catch(e){}
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Live Games — SureOdds Hub</title>
@@ -16,6 +19,18 @@
     --text:#F2F0E6; --text-dim:#9FB3A8;
     --gold:#E8B94B; --green:#2FA972; --red:#E2574C;
   }
+  :root[data-theme="light"]{
+    --bg:#FAF8F2; --bg-elev:#FFFFFF; --bg-card:#FFFFFF; --line:#E4E0D3;
+    --text:#16261C; --text-dim:#66756B;
+    --gold:#B8862A; --green:#1E7A4C; --red:#C0392B;
+  }
+  [data-theme="light"] header.top{background:rgba(250,248,242,0.92);}
+  .theme-toggle-btn{
+    background:var(--bg-card); border:1px solid var(--line); color:var(--text);
+    width:32px; height:32px; border-radius:50%; font-size:0.9rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; padding:0; flex:0 0 auto;
+  }
+  .theme-toggle-btn:active{transform:scale(0.92);}
   *{box-sizing:border-box;}
   html,body{margin:0;background:var(--bg);color:var(--text);}
   body{font-family:'Inter',system-ui,sans-serif; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);}
@@ -38,6 +53,11 @@
 
   section.live{padding:20px 0 4px;}
   .live-header{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
+  .league-group-header{
+    color:var(--gold); font-family:'Oswald',sans-serif; font-size:0.8rem; font-weight:600;
+    letter-spacing:0.3px; margin:18px 0 8px; padding-bottom:6px; border-bottom:1px solid var(--line);
+  }
+  .league-group-header:first-of-type{margin-top:0;}
   .live-header h2{font-size:1.05rem;}
   .live-dot{width:8px; height:8px; border-radius:50%; background:var(--red); animation:pulse 1.2s ease-in-out infinite;}
   .live-card{
@@ -110,15 +130,18 @@
 
 <header class="top">
   <div class="wrap">
-    <div class="brand">
+    <a href="index.html" class="brand" style="text-decoration:none;">
       <svg width="26" height="26" viewBox="0 0 64 64" style="flex:0 0 auto;">
         <circle cx="32" cy="32" r="30" fill="#0E1B15" stroke="#E8B94B" stroke-width="4"/>
         <circle cx="32" cy="32" r="14" fill="none" stroke="#E8B94B" stroke-width="3"/>
         <circle cx="32" cy="32" r="5" fill="#E8B94B"/>
       </svg>
       <span class="mark">SureOdds</span><span class="sub">HUB</span>
+    </a>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <a class="back-link" href="index.html">&larr; Back to tips</a>
+      <button class="theme-toggle-btn" id="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light/dark theme">🌙</button>
     </div>
-    <a class="back-link" href="index.html">&larr; Back to tips</a>
   </div>
 </header>
 
@@ -145,6 +168,24 @@
 </div>
 
 <script>
+function toggleTheme() {
+  const isLight = document.documentElement.getAttribute("data-theme") === "light";
+  if (isLight) {
+    document.documentElement.removeAttribute("data-theme");
+    localStorage.setItem("sureodds_theme", "dark");
+  } else {
+    document.documentElement.setAttribute("data-theme", "light");
+    localStorage.setItem("sureodds_theme", "light");
+  }
+  updateThemeIcon();
+}
+function updateThemeIcon() {
+  const btn = document.getElementById("theme-toggle");
+  if (!btn) return;
+  btn.textContent = document.documentElement.getAttribute("data-theme") === "light" ? "☀️" : "🌙";
+}
+updateThemeIcon();
+
 const LIVE_LEAGUES = [
   // Top European leagues
   "eng.1", "eng.2", "esp.1", "ita.1", "ger.1", "fra.1", "ned.1", "por.1", "sco.1", "tur.1",
@@ -285,7 +326,7 @@ async function onMatchToggle(e, eventId, slug) {
     ${extra.saves[0] ? statBar(extra.saves[0], extra.saves[1], "Goalkeeper Saves") : ""}`;
 }
 
-function matchCard(event, league, slug, isLive) {
+function matchCard(event, slug, isLive) {
   const comp = event.competitions[0];
   const home = comp.competitors.find((c) => c.homeAway === "home");
   const away = comp.competitors.find((c) => c.homeAway === "away");
@@ -298,7 +339,7 @@ function matchCard(event, league, slug, isLive) {
   return `
     <details class="live-card" ontoggle="onMatchToggle(event, '${event.id}', '${slug}')">
       <summary>
-        <div class="live-league"><span>${league}</span>${statusBadge}</div>
+        <div class="live-league" style="justify-content:flex-end;">${statusBadge}</div>
         <div class="live-teams">
           <div class="live-team"><img src="${home.team.logo || ""}" alt="" onerror="this.style.display='none'"><span>${home.team.shortDisplayName || home.team.displayName}</span></div>
           <div class="live-score" style="${isLive ? "" : "color:var(--text-dim);"}">${home.score} - ${away.score}</div>
@@ -311,6 +352,22 @@ function matchCard(event, league, slug, isLive) {
         ${summaryLink ? `<a class="live-more" href="${summaryLink.href}" target="_blank" rel="noopener">Full stats on ESPN →</a>` : ""}
       </div>
     </details>`;
+}
+
+function groupByLeague(events) {
+  // events already arrive in LIVE_LEAGUES order (Promise.allSettled preserves
+  // input order), so grouping by first-seen league name keeps big leagues
+  // first automatically, matching the priority baked into that list.
+  const groups = [];
+  const index = {};
+  events.forEach((item) => {
+    if (index[item.leagueName] === undefined) {
+      index[item.leagueName] = groups.length;
+      groups.push({ leagueName: item.leagueName, items: [] });
+    }
+    groups[index[item.leagueName]].items.push(item);
+  });
+  return groups;
 }
 
 async function loadLiveScores() {
@@ -338,23 +395,25 @@ async function loadLiveScores() {
     results.forEach((r) => {
       if (r.status === "fulfilled" && r.value && r.value.data && Array.isArray(r.value.data.events)) {
         const { slug, data } = r.value;
-        const leagueAbbr = (data.leagues && data.leagues[0] && data.leagues[0].abbreviation) || "";
+        const leagueName = (data.leagues && data.leagues[0] && (data.leagues[0].name || data.leagues[0].abbreviation)) || slug;
         data.events.forEach((e) => {
           const comp = e.competitions && e.competitions[0];
           if (!comp || !comp.status || !comp.status.type) return;
           const state = comp.status.type.state;
           const kickoffMs = new Date(e.date).getTime();
           if (state === "in") {
-            liveEvents.push({ event: e, league: leagueAbbr, slug });
+            liveEvents.push({ event: e, leagueName, slug });
           } else if (state === "pre") {
-            upcomingEvents.push({ event: e, league: leagueAbbr, slug, kickoffMs });
+            upcomingEvents.push({ event: e, leagueName, slug, kickoffMs });
           } else if (state === "post") {
-            finishedEvents.push({ event: e, league: leagueAbbr, slug, kickoffMs });
+            finishedEvents.push({ event: e, leagueName, slug, kickoffMs });
           }
         });
       }
     });
 
+    // Within each league group, order chronologically; league group order
+    // itself follows LIVE_LEAGUES priority via groupByLeague.
     upcomingEvents.sort((a, b) => a.kickoffMs - b.kickoffMs);
     finishedEvents.sort((a, b) => b.kickoffMs - a.kickoffMs);
 
@@ -366,16 +425,23 @@ async function loadLiveScores() {
       return;
     }
 
+    function renderLeagueGroups(groups, renderItem) {
+      return groups.map((g) => `
+        <div class="league-group-header">${g.leagueName}</div>
+        ${g.items.map(renderItem).join("")}
+      `).join("");
+    }
+
     const liveHtml = liveEvents.length === 0 ? "" : `
       <section class="live">
         <div class="live-header"><span class="live-dot"></span><h2>Live Now</h2></div>
-        ${liveEvents.map(({ event, league, slug }) => matchCard(event, league, slug, true)).join("")}
+        ${renderLeagueGroups(groupByLeague(liveEvents), ({ event, slug }) => matchCard(event, slug, true))}
       </section>`;
 
     const upcomingHtml = upcomingEvents.length === 0 ? "" : `
       <section class="soon">
         <div class="soon-header"><span>📅</span><h2>${isToday(currentDate) ? "Upcoming Today" : "Fixtures"}</h2></div>
-        ${upcomingEvents.map(({ event, league, kickoffMs }) => {
+        ${renderLeagueGroups(groupByLeague(upcomingEvents), ({ event, kickoffMs }) => {
           const comp = event.competitions[0];
           const home = comp.competitors.find((c) => c.homeAway === "home");
           const away = comp.competitors.find((c) => c.homeAway === "away");
@@ -390,15 +456,15 @@ async function loadLiveScores() {
                 <div class="soon-vs">vs</div>
                 <div class="soon-team" style="justify-content:flex-end; text-align:right;"><span>${away.team.shortDisplayName || away.team.displayName}</span><img src="${away.team.logo || ""}" alt="" onerror="this.style.display='none'"></div>
               </div>
-              <div class="soon-meta"><span>${league} · ${kickoffTime}</span><span class="soon-countdown">Kicks off in ${countdown}</span></div>
+              <div class="soon-meta"><span>${kickoffTime}</span><span class="soon-countdown">Kicks off in ${countdown}</span></div>
             </div>`;
-        }).join("")}
+        })}
       </section>`;
 
     const finishedHtml = finishedEvents.length === 0 ? "" : `
       <section class="finished">
         <div class="finished-header"><span>✅</span><h2>${isToday(currentDate) ? "Finished Today" : "Results"}</h2></div>
-        ${finishedEvents.map(({ event, league, slug }) => matchCard(event, league, slug, false)).join("")}
+        ${renderLeagueGroups(groupByLeague(finishedEvents), ({ event, slug }) => matchCard(event, slug, false))}
       </section>`;
 
     wrap.innerHTML = liveHtml + upcomingHtml + finishedHtml;

@@ -209,6 +209,17 @@
     border:1px solid var(--line); color:var(--text); font-size:0.8rem; font-weight:600;
   }
   .tenodds-note{color:var(--text-dim); font-size:0.78rem; margin-top:10px;}
+  .tenodds-closes{
+    display:inline-flex; align-items:center; gap:6px; margin-bottom:10px;
+    font-size:0.78rem; font-weight:600; padding:5px 11px; border-radius:20px;
+    background:#2A2A18; color:#D8C87A;
+  }
+  .tenodds-closes.urgent{background:#2E1A18; color:#F08A7E;}
+  .tenodds-closes.closed{background:#2A1414; color:var(--red);}
+  .tenodds-streak{color:var(--gold); font-weight:700;}
+  [data-theme="light"] .tenodds-closes{background:#FBF3D0; color:#8A7222;}
+  [data-theme="light"] .tenodds-closes.urgent{background:#FCE8E4; color:#B03A2E;}
+  [data-theme="light"] .tenodds-closes.closed{background:#FBEAE8; color:var(--red);}
   .tenodds-empty{color:var(--text-dim); font-size:0.88rem; padding:10px 0 4px; text-align:center;}
   .tenodds-history{margin-top:14px; padding-top:12px; border-top:1px solid var(--line);}
   .tenodds-history-label{color:var(--text-dim); font-size:0.7rem; margin-bottom:8px; display:flex; justify-content:space-between;}
@@ -717,6 +728,16 @@ async function loadTenOdds() {
     const history = codes.filter((c, i) => !(showMain && i === 0) && (c.status === "won" || c.status === "lost")).slice(0, 7);
     const wonCount = history.filter((c) => c.status === "won").length;
 
+    // Streak: consecutive wins counting back from the most recent settled code.
+    // (Only highlighted for 2+ wins — every loss is still visible in the chips below.)
+    let winStreak = 0;
+    for (const c of codes) {
+      if (c.status === "pending") continue;
+      if (c.status === "won") winStreak++;
+      else break;
+    }
+    const streakHtml = winStreak >= 2 ? `<span class="tenodds-streak">🔥 ${winStreak} hits in a row</span> · ` : "";
+
     const statusPill = latest.status === "won"
       ? `<span class="status-pill status-won">Won ✅</span>`
       : latest.status === "lost"
@@ -731,6 +752,7 @@ async function loadTenOdds() {
         </div>
         ${latest.odds ? `<div class="tenodds-total">${escHtml(latest.odds)}<small>TOTAL ODDS</small></div>` : ""}
       </div>
+      ${latest.status === "pending" && latest.expires && !isNaN(new Date(latest.expires)) ? `<div class="tenodds-closes" data-expires="${new Date(latest.expires).getTime()}"></div>` : ""}
       <div class="tenodds-codebox">
         <span class="tenodds-code">${escHtml(latest.code)}</span>
       </div>
@@ -750,7 +772,7 @@ async function loadTenOdds() {
 
     const historyHtml = history.length === 0 ? "" : `
       <div class="tenodds-history">
-        <div class="tenodds-history-label"><span>Previous codes</span><span>${wonCount}/${history.length} hit</span></div>
+        <div class="tenodds-history-label"><span>Previous codes</span><span>${streakHtml}${wonCount}/${history.length} hit</span></div>
         <div class="tenodds-chips">
           ${history.map((c) => {
             const d = new Date(c.date + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" });
@@ -760,10 +782,29 @@ async function loadTenOdds() {
       </div>`;
 
     wrap.innerHTML = `<section class="tenodds">${mainHtml}${historyHtml}</section>`;
+    tickTenOdds();
   } catch (e) {
     wrap.innerHTML = "";
   }
 }
+
+function tickTenOdds() {
+  document.querySelectorAll(".tenodds-closes[data-expires]").forEach((el) => {
+    const diff = Number(el.dataset.expires) - Date.now();
+    el.classList.remove("urgent", "closed");
+    if (diff <= 0) {
+      el.classList.add("closed");
+      el.textContent = "🔒 Closed — games have started";
+      return;
+    }
+    const mins = Math.floor(diff / 60000);
+    const d = Math.floor(mins / 1440), h = Math.floor((mins % 1440) / 60), m = mins % 60;
+    const text = d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+    if (mins < 30) el.classList.add("urgent");
+    el.textContent = `⏳ Closes in ${text}`;
+  });
+}
+setInterval(tickTenOdds, 30000);
 
 async function loadTips() {
   try {

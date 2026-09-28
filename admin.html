@@ -185,6 +185,9 @@
       </div>
       <label>Short note (optional)</label>
       <input id="c-note" placeholder="e.g. 6 games, mostly Europe">
+      <label>Closes at — first kickoff (optional)</label>
+      <input id="c-expires" type="datetime-local">
+      <small class="hint">Visitors will see a live "Closes in 2h 10m" countdown. Use the kickoff time of the earliest game on the slip.</small>
       <button class="btn-primary" onclick="addCode()">Publish 10 Odds code</button>
       <div id="code-msg" class="status-msg"></div>
       <div id="codes-container" style="margin-top:16px;"></div>
@@ -565,6 +568,9 @@ async function addCode() {
   const code = document.getElementById("c-code").value.trim();
   const odds = document.getElementById("c-odds").value.trim();
   const note = document.getElementById("c-note").value.trim();
+  const expiresRaw = document.getElementById("c-expires").value;
+  // datetime-local is the admin's local time; store as absolute UTC so every visitor's countdown is correct
+  const expires = expiresRaw ? new Date(expiresRaw).toISOString() : "";
   if (!code) {
     showMsg("code-msg", "Enter the SportyBet code.", "err");
     return;
@@ -575,14 +581,14 @@ async function addCode() {
     codes.unshift({
       id: Date.now().toString(36),
       date: new Date().toISOString().slice(0, 10),
-      code, odds, note,
+      code, odds, note, expires,
       status: "pending",
     });
     await githubSaveFile(cfg, codes, sha, `Add 10 Odds code: ${code}`, CODES_FILE);
 
     let tgNote = "";
     try {
-      const msg = `🎫 <b>Daily 10 Odds</b>\n\nSportyBet Code: <b>${escHtml(code)}</b>${odds ? `\n💰 Total odds: <b>${escHtml(odds)}</b>` : ""}${note ? `\n📝 ${escHtml(note)}` : ""}`;
+      const msg = `🎫 <b>Daily 10 Odds</b>\n\nSportyBet Code: <b>${escHtml(code)}</b>${odds ? `\n💰 Total odds: <b>${escHtml(odds)}</b>` : ""}${note ? `\n📝 ${escHtml(note)}` : ""}${expires ? `\n⏳ Closes: ${escHtml(new Date(expires).toLocaleString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" }))}` : ""}`;
       const r = await postToTelegram(cfg, msg);
       if (!r.skipped) tgNote = " Posted to Telegram too.";
     } catch (tgErr) {
@@ -590,7 +596,7 @@ async function addCode() {
     }
 
     showMsg("code-msg", "Published!" + tgNote, "ok");
-    ["c-code", "c-odds", "c-note"].forEach((id) => (document.getElementById(id).value = ""));
+    ["c-code", "c-odds", "c-note", "c-expires"].forEach((id) => (document.getElementById(id).value = ""));
     loadCodesList();
   } catch (e) {
     showMsg("code-msg", "Failed: " + e.message, "err");
@@ -644,7 +650,7 @@ async function loadCodesList() {
         <div class="tip-row-top">
           <div>
             <div class="tip-row-title">🎫 ${escHtml(c.code)}</div>
-            <div class="tip-row-sub">${escHtml(c.date)}${c.note ? " · " + escHtml(c.note) : ""}</div>
+            <div class="tip-row-sub">${escHtml(c.date)}${c.note ? " · " + escHtml(c.note) : ""}${c.expires ? " · ⏳ " + escHtml(new Date(c.expires).toLocaleString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" })) : ""}</div>
           </div>
           <div class="tip-row-odds">${escHtml(c.odds)}</div>
         </div>

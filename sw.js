@@ -1,5 +1,5 @@
-const CACHE = "sureodds-v1";
-const ASSETS = ["./index.html", "./about.html", "./manifest.json"];
+const CACHE = "sureodds-v2";
+const ASSETS = ["./index.html", "./about.html", "./live.html", "./manifest.json"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
@@ -16,11 +16,20 @@ self.addEventListener("activate", (e) => {
 });
 
 self.addEventListener("fetch", (e) => {
-  // Never cache data.json or the GitHub API — tips and admin actions must always be fresh
-  if (e.request.url.includes("data.json") || e.request.url.includes("api.github.com") || e.request.url.includes("api.telegram.org")) {
-    return;
-  }
+  if (e.request.method !== "GET") return;
+  const url = new URL(e.request.url);
+  // Only handle our own files. Never touch tips/codes data, GitHub, Telegram, ESPN, fonts.
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.endsWith("data.json") || url.pathname.endsWith("codes.json")) return;
+
+  // Network-first: always try for the freshest page; use cache only if offline.
   e.respondWith(
-    caches.match(e.request).then((cached) => cached || fetch(e.request).catch(() => cached))
+    fetch(e.request)
+      .then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
+        return res;
+      })
+      .catch(() => caches.match(e.request))
   );
 });

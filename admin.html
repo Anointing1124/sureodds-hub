@@ -171,6 +171,26 @@
     </div>
 
     <div class="card">
+      <h2>🎫 Daily 10 Odds code</h2>
+      <p style="color:var(--text-dim); font-size:0.82rem; margin:0 0 12px; line-height:1.5;">Just the SportyBet code — no need to list the games. Shows in its own section on the homepage.</p>
+      <div class="row2">
+        <div>
+          <label>SportyBet code</label>
+          <input id="c-code" placeholder="e.g. LG8FV3">
+        </div>
+        <div>
+          <label>Total odds</label>
+          <input id="c-odds" placeholder="e.g. 10.4">
+        </div>
+      </div>
+      <label>Short note (optional)</label>
+      <input id="c-note" placeholder="e.g. 6 games, mostly Europe">
+      <button class="btn-primary" onclick="addCode()">Publish 10 Odds code</button>
+      <div id="code-msg" class="status-msg"></div>
+      <div id="codes-container" style="margin-top:16px;"></div>
+    </div>
+
+    <div class="card">
       <h2>Existing predictions</h2>
       <div id="tips-container">Loading…</div>
     </div>
@@ -225,8 +245,8 @@ function b64DecodeUnicode(str) {
   return decodeURIComponent(escape(atob(str.replace(/\n/g, ""))));
 }
 
-async function githubGetFile(cfg) {
-  const url = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/data.json?ref=${cfg.branch}`;
+async function githubGetFile(cfg, path = "data.json") {
+  const url = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${path}?ref=${cfg.branch}`;
   const res = await fetch(url, {
     headers: { Authorization: `token ${cfg.token}`, Accept: "application/vnd.github+json" },
   });
@@ -237,8 +257,8 @@ async function githubGetFile(cfg) {
   return { tips, sha: data.sha };
 }
 
-async function githubSaveFile(cfg, tips, sha, message) {
-  const url = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/data.json`;
+async function githubSaveFile(cfg, tips, sha, message, path = "data.json") {
+  const url = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${path}`;
   const body = {
     message,
     content: b64EncodeUnicode(JSON.stringify(tips, null, 2)),
@@ -532,6 +552,114 @@ async function shareImage(id) {
   link.click();
 }
 
+// ============ Daily 10 Odds codes (stored separately in codes.json) ============
+const CODES_FILE = "codes.json";
+let currentCodes = [];
+
+function escHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+async function addCode() {
+  const cfg = getConfig();
+  const code = document.getElementById("c-code").value.trim();
+  const odds = document.getElementById("c-odds").value.trim();
+  const note = document.getElementById("c-note").value.trim();
+  if (!code) {
+    showMsg("code-msg", "Enter the SportyBet code.", "err");
+    return;
+  }
+  showMsg("code-msg", "Publishing…", "pending");
+  try {
+    const { tips: codes, sha } = await githubGetFile(cfg, CODES_FILE);
+    codes.unshift({
+      id: Date.now().toString(36),
+      date: new Date().toISOString().slice(0, 10),
+      code, odds, note,
+      status: "pending",
+    });
+    await githubSaveFile(cfg, codes, sha, `Add 10 Odds code: ${code}`, CODES_FILE);
+
+    let tgNote = "";
+    try {
+      const msg = `🎫 <b>Daily 10 Odds</b>\n\nSportyBet Code: <b>${escHtml(code)}</b>${odds ? `\n💰 Total odds: <b>${escHtml(odds)}</b>` : ""}${note ? `\n📝 ${escHtml(note)}` : ""}`;
+      const r = await postToTelegram(cfg, msg);
+      if (!r.skipped) tgNote = " Posted to Telegram too.";
+    } catch (tgErr) {
+      tgNote = ` (Telegram post failed: ${tgErr.message})`;
+    }
+
+    showMsg("code-msg", "Published!" + tgNote, "ok");
+    ["c-code", "c-odds", "c-note"].forEach((id) => (document.getElementById(id).value = ""));
+    loadCodesList();
+  } catch (e) {
+    showMsg("code-msg", "Failed: " + e.message, "err");
+  }
+}
+
+async function updateCodeStatus(id, newStatus) {
+  const cfg = getConfig();
+  try {
+    const { tips: codes, sha } = await githubGetFile(cfg, CODES_FILE);
+    const idx = codes.findIndex((c) => c.id === id);
+    if (idx === -1) return;
+    codes[idx].status = newStatus;
+    await githubSaveFile(cfg, codes, sha, `Mark 10 Odds ${codes[idx].code} as ${newStatus}`, CODES_FILE);
+    try {
+      const emoji = newStatus === "won" ? "✅" : "❌";
+      await postToTelegram(cfg, `${emoji} <b>10 Odds ${newStatus === "won" ? "WON" : "LOST"}</b>\n\nCode: ${escHtml(codes[idx].code)}`);
+    } catch (tgErr) {
+      console.warn("Telegram result post failed:", tgErr.message);
+    }
+    loadCodesList();
+  } catch (e) {
+    alert("Failed: " + e.message);
+  }
+}
+
+async function deleteCode(id) {
+  if (!confirm("Delete this code permanently?")) return;
+  const cfg = getConfig();
+  try {
+    const { tips: codes, sha } = await githubGetFile(cfg, CODES_FILE);
+    await githubSaveFile(cfg, codes.filter((c) => c.id !== id), sha, "Delete a 10 Odds code", CODES_FILE);
+    loadCodesList();
+  } catch (e) {
+    alert("Failed: " + e.message);
+  }
+}
+
+async function loadCodesList() {
+  const cfg = getConfig();
+  const container = document.getElementById("codes-container");
+  try {
+    const { tips: codes } = await githubGetFile(cfg, CODES_FILE);
+    currentCodes = codes;
+    if (codes.length === 0) {
+      container.innerHTML = `<p style="color:var(--text-dim); font-size:0.82rem;">No codes posted yet.</p>`;
+      return;
+    }
+    container.innerHTML = codes.slice(0, 10).map((c) => `
+      <div class="tip-row">
+        <div class="tip-row-top">
+          <div>
+            <div class="tip-row-title">🎫 ${escHtml(c.code)}</div>
+            <div class="tip-row-sub">${escHtml(c.date)}${c.note ? " · " + escHtml(c.note) : ""}</div>
+          </div>
+          <div class="tip-row-odds">${escHtml(c.odds)}</div>
+        </div>
+        <div class="tip-row-actions">
+          <span class="pill pill-${c.status}">${c.status}</span>
+          <button class="btn-won" onclick="updateCodeStatus('${c.id}','won')">Mark Won</button>
+          <button class="btn-lost" onclick="updateCodeStatus('${c.id}','lost')">Mark Lost</button>
+          <button class="btn-danger" onclick="deleteCode('${c.id}')">Delete</button>
+        </div>
+      </div>`).join("");
+  } catch (e) {
+    container.innerHTML = `<p style="color:var(--red); font-size:0.82rem;">Couldn't load codes: ${escHtml(e.message)}</p>`;
+  }
+}
+
 async function init() {
   const cfg = getConfig();
   if (!cfg) return;
@@ -540,6 +668,7 @@ async function init() {
     document.getElementById("setup-screen").style.display = "none";
     document.getElementById("app-screen").style.display = "block";
     loadTipsList();
+    loadCodesList();
   } catch (e) {
     document.getElementById("setup-screen").style.display = "block";
     document.getElementById("app-screen").style.display = "none";

@@ -387,15 +387,54 @@ function baseStatsHtml(home, away) {
     ${hFouls ? statBar(hFouls, aFouls, "Fouls") : ""}`;
 }
 
+/** Fetches with a hard timeout so a slow/unresponsive endpoint can never leave
+ *  the UI stuck — it fails fast instead, and the caller shows a fallback. */
+function fetchWithTimeout(url, ms) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return fetch(url, { cache: "no-store", signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
+/** Attempts to fetch offsides + goalkeeper saves from ESPN's deeper summary
+ *  endpoint. Best-effort: if it fails or times out, returns null quietly. */
+async function fetchExtraStats(eventId, slug) {
+  if (extraStatsCache[eventId] !== undefined) return extraStatsCache[eventId];
+  try {
+    const res = await fetchWithTimeout(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/summary?event=${eventId}`, 7000);
+    if (!res.ok) throw new Error("bad response");
+    const data = await res.json();
+    const teams = data.boxscore && data.boxscore.teams;
+    if (!Array.isArray(teams) || teams.length < 2) throw new Error("no boxscore");
+
+    const getVal = (stats, candidates) => {
+      for (const name of candidates) {
+        const s = (stats || []).find((x) => x.name === name);
+        if (s) return s.displayValue;
+      }
+      return null;
+    };
+
+    const result = {
+      offsides: teams.map((t) => getVal(t.statistics, ["offsides"])),
+      saves: teams.map((t) => getVal(t.statistics, ["saves", "goalkeeperSaves", "goalKeeperSaves"])),
+    };
+    extraStatsCache[eventId] = result;
+    return result;
+  } catch (e) {
+    extraStatsCache[eventId] = null;
+    return null;
+  }
+}
+
 /** Best-effort goal/card timeline from ESPN's Core API play-by-play endpoint.
  *  This endpoint's exact response shape isn't something I could verify directly,
- *  so this is defensive: if the fields don't match what's expected, it just
- *  returns nothing rather than breaking the page. */
+ *  so this is defensive: if the fields don't match what's expected, or the
+ *  request times out, it just returns nothing rather than breaking the page. */
 async function fetchTimeline(eventId, slug, homeId, awayId) {
   const cacheKey = eventId + "-timeline";
   if (extraStatsCache[cacheKey] !== undefined) return extraStatsCache[cacheKey];
   try {
-    const res = await fetch(`https://sports.core.api.espn.com/v2/sports/soccer/leagues/${slug}/events/${eventId}/competitions/${eventId}/plays?limit=300`, { cache: "no-store" });
+    const res = await fetchWithTimeout(`https://sports.core.api.espn.com/v2/sports/soccer/leagues/${slug}/events/${eventId}/competitions/${eventId}/plays?limit=300`, 7000);
     if (!res.ok) throw new Error("bad response");
     const data = await res.json();
     const items = data.items || [];
@@ -437,10 +476,14 @@ async function onMatchToggle(e, eventId, slug, homeId, awayId) {
   holder.dataset.loaded = "1";
   holder.innerHTML = `<div class="stats-note">Loading more stats…</div>`;
 
-  const [extra, timeline] = await Promise.all([
+  // allSettled, not all: if one endpoint fails or times out, the other's
+  // result still shows — a single bad request can never block everything.
+  const [extraResult, timelineResult] = await Promise.allSettled([
     fetchExtraStats(eventId, slug),
     fetchTimeline(eventId, slug, homeId, awayId),
   ]);
+  const extra = extraResult.status === "fulfilled" ? extraResult.value : null;
+  const timeline = timelineResult.status === "fulfilled" ? timelineResult.value : null;
 
   let html = "";
   if (extra && (extra.offsides[0] || extra.saves[0])) {
@@ -453,8 +496,10 @@ async function onMatchToggle(e, eventId, slug, homeId, awayId) {
       <div class="timeline-item"><span class="tmin">${t.clock || ""}</span><span>${t.icon} ${t.desc}${t.side ? ` (${t.side === "home" ? "H" : "A"})` : ""}</span></div>
     `).join("")}</div>`;
   }
-  holder.innerHTML = html;
+  // Never leave the "Loading…" text stuck — if nothing came back, say so plainly.
+  holder.innerHTML = html || `<div class="stats-note">No additional stats available for this match. <a href="https://www.espn.com" target="_blank" rel="noopener" style="color:var(--gold);">Check ESPN directly</a> for goal scorers and cards.</div>`;
 }
+
 
 function matchCard(event, slug, isLive) {
   const comp = event.competitions[0];

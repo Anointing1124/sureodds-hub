@@ -64,6 +64,15 @@
   .pill-won{background:#0F2A1E; color:var(--green);}
   .pill-lost{background:#2A1414; color:var(--red);}
 
+  .dash-group{margin-bottom:18px;}
+  .dash-group:last-child{margin-bottom:0;}
+  .dash-group-title{color:var(--text-dim); font-size:0.75rem; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;}
+  .dash-row{display:flex; align-items:center; gap:10px; padding:6px 0; font-size:0.85rem;}
+  .dash-row .dash-name{flex:0 0 120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .dash-row .dash-bar-wrap{flex:1; height:8px; background:var(--bg-elev); border-radius:4px; overflow:hidden;}
+  .dash-row .dash-bar{height:100%; background:var(--green);}
+  .dash-row .dash-val{flex:0 0 64px; text-align:right; color:var(--text-dim); font-size:0.78rem;}
+
   #setup-screen{max-width:480px; margin:60px auto 0;}
   #app-screen{display:none;}
   small.hint{display:block; color:#6C8B7A; font-size:0.75rem; margin-top:4px; line-height:1.4;}
@@ -191,6 +200,11 @@
       <button class="btn-primary" onclick="addCode()">Publish 10 Odds code</button>
       <div id="code-msg" class="status-msg"></div>
       <div id="codes-container" style="margin-top:16px;"></div>
+    </div>
+
+    <div class="card">
+      <h2>📊 Performance dashboard</h2>
+      <div id="dashboard-container">Loading…</div>
     </div>
 
     <div class="card">
@@ -432,12 +446,65 @@ async function deleteTip(id) {
 
 let currentTips = [];
 
+function escHtmlD(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function oddsRange(oddsStr) {
+  const o = parseFloat(oddsStr);
+  if (isNaN(o)) return "Unknown";
+  if (o < 1.5) return "Under 1.5";
+  if (o < 2) return "1.5 – 1.99";
+  if (o < 3) return "2 – 2.99";
+  if (o < 5) return "3 – 4.99";
+  return "5+";
+}
+
+function renderDashboardGroup(title, settled, keyFn) {
+  const byKey = {};
+  settled.forEach((t) => {
+    const key = keyFn(t) || "Uncategorized";
+    byKey[key] = byKey[key] || { won: 0, total: 0 };
+    byKey[key].total++;
+    if (t.status === "won") byKey[key].won++;
+  });
+  const entries = Object.entries(byKey).sort((a, b) => b[1].total - a[1].total);
+  if (entries.length === 0) return "";
+  return `
+    <div class="dash-group">
+      <div class="dash-group-title">${title}</div>
+      ${entries.map(([name, s]) => {
+        const rate = Math.round((s.won / s.total) * 100);
+        return `
+          <div class="dash-row">
+            <span class="dash-name">${escHtmlD(name)}</span>
+            <div class="dash-bar-wrap"><div class="dash-bar" style="width:${rate}%"></div></div>
+            <span class="dash-val">${rate}% (${s.won}/${s.total})</span>
+          </div>`;
+      }).join("")}
+    </div>`;
+}
+
+function renderDashboard(tips) {
+  const container = document.getElementById("dashboard-container");
+  const settled = tips.filter((t) => t.status === "won" || t.status === "lost");
+  if (settled.length === 0) {
+    container.innerHTML = `<p style="color:var(--text-dim); font-size:0.85rem;">No settled predictions yet — mark some Won or Lost to see stats here.</p>`;
+    return;
+  }
+  container.innerHTML =
+    renderDashboardGroup("By sport", settled, (t) => t.sport) +
+    renderDashboardGroup("By league", settled, (t) => t.league) +
+    renderDashboardGroup("By odds range", settled, (t) => oddsRange(t.odds));
+}
+
 async function loadTipsList() {
   const cfg = getConfig();
   const container = document.getElementById("tips-container");
   try {
     const { tips } = await githubGetFile(cfg);
     currentTips = tips;
+    renderDashboard(tips);
     if (tips.length === 0) {
       container.innerHTML = `<p style="color:var(--text-dim); font-size:0.85rem;">No predictions yet — add one above.</p>`;
       return;

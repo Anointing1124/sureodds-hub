@@ -115,6 +115,34 @@
 
   .empty{padding:30px 0; color:var(--text-dim); font-size:0.92rem; line-height:1.6; border:1px dashed var(--line); border-radius:10px; text-align:center; margin:14px 0;}
 
+  .search-box{
+    width:100%; background:var(--bg-card); border:1px solid var(--line); color:var(--text);
+    padding:11px 14px; border-radius:10px; font-size:0.9rem; font-family:inherit; margin-top:18px;
+  }
+  .search-box::placeholder{color:var(--text-dim);}
+  .hidden-by-search{display:none !important;}
+
+  .star-btn{
+    background:none; border:none; cursor:pointer; font-size:0.95rem; padding:2px 4px;
+    color:var(--text-dim); line-height:1; vertical-align:-2px;
+  }
+  .star-btn.active{color:var(--gold);}
+
+  .myteams-section{margin:14px 0 6px;}
+  .myteams-header{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
+  .myteams-header h2{font-size:1.05rem; color:var(--gold);}
+
+  .share-result-btn{
+    display:block; width:100%; text-align:center; margin-top:10px; padding:9px 12px;
+    background:var(--bg-elev); border:1px solid var(--line); border-radius:6px;
+    color:var(--text); font-size:0.8rem; font-weight:600; cursor:pointer; font-family:inherit;
+  }
+  .share-result-btn:active{transform:scale(0.98);}
+
+  .timeline{margin-top:10px; padding-top:10px; border-top:1px solid var(--line);}
+  .timeline-item{display:flex; gap:8px; font-size:0.78rem; padding:3px 0; color:var(--text-dim);}
+  .timeline-item .tmin{color:var(--gold); font-weight:600; width:34px; flex:0 0 auto;}
+
   .date-nav{display:flex; align-items:center; justify-content:space-between; margin:18px 0 4px; gap:10px;}
   .date-nav-btn{
     background:var(--bg-card); border:1px solid var(--line); color:var(--text);
@@ -155,11 +183,15 @@
     <div class="last-updated" id="last-updated"></div>
   </section>
 
+  <input type="text" id="search-box" class="search-box" placeholder="🔎 Search team or league…" oninput="applySearch()">
+
   <div class="date-nav">
     <button class="date-nav-btn" onclick="changeDate(-1)">‹ Prev</button>
     <span class="date-nav-label" id="date-label">Today</span>
     <button class="date-nav-btn" onclick="changeDate(1)">Next ›</button>
   </div>
+
+  <div id="myteams-wrap"></div>
 
   <div id="live-wrap">
     <div class="empty">Loading matches…</div>
@@ -169,6 +201,8 @@
     <p>Live data via ESPN's public scoreboard feed. Scores are provided for reference — always confirm with your bookie before placing a bet.</p>
   </footer>
 </div>
+
+<canvas id="result-canvas" width="1080" height="1080" style="display:none;"></canvas>
 
 <script>
 function toggleTheme() {
@@ -188,6 +222,78 @@ function updateThemeIcon() {
   btn.textContent = document.documentElement.getAttribute("data-theme") === "light" ? "☀️" : "🌙";
 }
 updateThemeIcon();
+
+// ============ Favorites (My Teams / My Leagues) — stored per-browser via localStorage ============
+function getFavTeams() {
+  try { return JSON.parse(localStorage.getItem("sureodds_fav_teams") || "{}"); } catch (e) { return {}; }
+}
+function getFavLeagues() {
+  try { return JSON.parse(localStorage.getItem("sureodds_fav_leagues") || "{}"); } catch (e) { return {}; }
+}
+function toggleFavTeam(id, name, e) {
+  if (e) e.stopPropagation();
+  const favs = getFavTeams();
+  if (favs[id]) delete favs[id]; else favs[id] = name;
+  localStorage.setItem("sureodds_fav_teams", JSON.stringify(favs));
+  loadLiveScores();
+}
+function toggleFavLeague(name, e) {
+  if (e) e.stopPropagation();
+  const favs = getFavLeagues();
+  if (favs[name]) delete favs[name]; else favs[name] = true;
+  localStorage.setItem("sureodds_fav_leagues", JSON.stringify(favs));
+  loadLiveScores();
+}
+function teamStar(team) {
+  const isFav = !!getFavTeams()[team.id];
+  return `<button class="star-btn ${isFav ? "active" : ""}" onclick="toggleFavTeam('${team.id}', '${(team.displayName || "").replace(/'/g, "\\'")}', event)" title="Follow this team">${isFav ? "★" : "☆"}</button>`;
+}
+function escAttr(s) {
+  return String(s ?? "").replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+}
+
+// ============ Search filter — client-side, filters already-rendered cards ============
+function applySearch() {
+  const q = document.getElementById("search-box").value.trim().toLowerCase();
+  const cards = document.querySelectorAll("#live-wrap .live-card, #live-wrap .soon-card, #live-wrap .league-group-header");
+  cards.forEach((el) => {
+    const text = el.textContent.toLowerCase();
+    el.classList.toggle("hidden-by-search", q.length > 0 && !text.includes(q));
+  });
+  document.querySelectorAll("#live-wrap .league-group-header").forEach((header) => {
+    let sib = header.nextElementSibling;
+    let anyVisible = false;
+    while (sib && !sib.classList.contains("league-group-header")) {
+      if (!sib.classList.contains("hidden-by-search")) anyVisible = true;
+      sib = sib.nextElementSibling;
+    }
+    header.classList.toggle("hidden-by-search", q.length > 0 && !anyVisible);
+  });
+}
+
+// ============ Deep link: live.html?league=eng.1 pre-fills the search box ============
+const LEAGUE_DEEPLINK = new URLSearchParams(location.search).get("league");
+
+// Friendly names for deep-link resolution (?league=eng.1 -> "English Premier League")
+const LEAGUE_NAME_MAP = {
+  "eng.1": "English Premier League", "eng.2": "English Championship",
+  "esp.1": "Spanish LALIGA", "ita.1": "Italian Serie A", "ger.1": "German Bundesliga",
+  "fra.1": "French Ligue 1", "ned.1": "Dutch Eredivisie", "por.1": "Portuguese Primeira Liga",
+  "sco.1": "Scottish Premiership", "tur.1": "Turkish Super Lig",
+  "usa.1": "MLS", "mex.1": "Mexican Liga BBVA MX", "arg.1": "Argentine Liga Profesional de Futbol",
+  "bra.1": "Brazilian Serie A", "bra.2": "Brazilian Serie B", "chi.1": "Chilean Primera Division",
+  "col.1": "Colombian Primera A", "par.1": "Paraguayan Primera Division", "per.1": "Peruvian Liga 1",
+  "uru.1": "Liga AUF Uruguaya", "bol.1": "Bolivian Liga Profesional", "ecu.1": "LigaPro Ecuador",
+  "ven.1": "Venezuelan Primera Division",
+  "uefa.champions": "UEFA Champions League", "uefa.europa": "UEFA Europa League",
+  "uefa.europa.conf": "UEFA Conference League",
+  "conmebol.libertadores": "CONMEBOL Libertadores", "conmebol.sudamericana": "CONMEBOL Sudamericana",
+  "conmebol.recopa": "CONMEBOL Recopa",
+  "uefa.nations": "UEFA Nations League", "caf.nations": "Africa Cup of Nations",
+  "fifa.worldq.uefa": "FIFA World Cup Qualifying - UEFA", "fifa.worldq.concacaf": "FIFA World Cup Qualifying - Concacaf",
+  "fifa.worldq.afc": "FIFA World Cup Qualifying - AFC", "fifa.worldq.caf": "FIFA World Cup Qualifying - CAF",
+  "fifa.worldq.conmebol": "FIFA World Cup Qualifying - CONMEBOL",
+};
 
 const LIVE_LEAGUES = [
   // Top European leagues
@@ -281,52 +387,73 @@ function baseStatsHtml(home, away) {
     ${hFouls ? statBar(hFouls, aFouls, "Fouls") : ""}`;
 }
 
-/** Attempts to fetch offsides + goalkeeper saves from ESPN's deeper summary
- *  endpoint. This is a bonus on top of the base stats — if it fails for any
- *  reason (network, format change, etc.) we just quietly skip it. */
-async function fetchExtraStats(eventId, slug) {
-  if (extraStatsCache[eventId] !== undefined) return extraStatsCache[eventId];
+/** Best-effort goal/card timeline from ESPN's Core API play-by-play endpoint.
+ *  This endpoint's exact response shape isn't something I could verify directly,
+ *  so this is defensive: if the fields don't match what's expected, it just
+ *  returns nothing rather than breaking the page. */
+async function fetchTimeline(eventId, slug, homeId, awayId) {
+  const cacheKey = eventId + "-timeline";
+  if (extraStatsCache[cacheKey] !== undefined) return extraStatsCache[cacheKey];
   try {
-    const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/summary?event=${eventId}`, { cache: "no-store" });
+    const res = await fetch(`https://sports.core.api.espn.com/v2/sports/soccer/leagues/${slug}/events/${eventId}/competitions/${eventId}/plays?limit=300`, { cache: "no-store" });
     if (!res.ok) throw new Error("bad response");
     const data = await res.json();
-    const teams = data.boxscore && data.boxscore.teams;
-    if (!Array.isArray(teams) || teams.length < 2) throw new Error("no boxscore");
-
-    const getVal = (stats, candidates) => {
-      for (const name of candidates) {
-        const s = (stats || []).find((x) => x.name === name);
-        if (s) return s.displayValue;
+    const items = data.items || [];
+    const getTeamId = (play) => {
+      if (!play.team) return null;
+      if (play.team.id) return String(play.team.id);
+      if (play.team.$ref) {
+        const m = play.team.$ref.match(/teams\/(\d+)/);
+        return m ? m[1] : null;
       }
       return null;
     };
-
-    const result = {
-      offsides: teams.map((t) => getVal(t.statistics, ["offsides"])),
-      saves: teams.map((t) => getVal(t.statistics, ["saves", "goalkeeperSaves", "goalKeeperSaves"])),
-    };
-    extraStatsCache[eventId] = result;
-    return result;
+    const timeline = [];
+    items.forEach((p) => {
+      const typeText = (p.type && p.type.text) || "";
+      const isGoal = p.scoringPlay === true;
+      const isYellow = /yellow card/i.test(typeText);
+      const isRed = /red card/i.test(typeText);
+      if (!isGoal && !isYellow && !isRed) return;
+      const teamId = getTeamId(p);
+      const side = teamId === String(homeId) ? "home" : teamId === String(awayId) ? "away" : null;
+      const clock = (p.clock && p.clock.displayValue) || "";
+      const icon = isGoal ? "⚽" : isRed ? "🟥" : "🟨";
+      const desc = (p.text || typeText || "").trim();
+      timeline.push({ clock, icon, desc, side });
+    });
+    extraStatsCache[cacheKey] = timeline.length ? timeline : null;
+    return extraStatsCache[cacheKey];
   } catch (e) {
-    extraStatsCache[eventId] = null;
+    extraStatsCache[cacheKey] = null;
     return null;
   }
 }
 
-async function onMatchToggle(e, eventId, slug) {
+async function onMatchToggle(e, eventId, slug, homeId, awayId) {
   if (!e.target.open) return; // only act on expand, not collapse
   const holder = document.getElementById(`extra-${eventId}`);
   if (!holder || holder.dataset.loaded === "1") return;
   holder.dataset.loaded = "1";
-  holder.innerHTML = `<div class="stats-note">Loading offsides &amp; saves…</div>`;
-  const extra = await fetchExtraStats(eventId, slug);
-  if (!extra || (!extra.offsides[0] && !extra.saves[0])) {
-    holder.innerHTML = "";
-    return;
+  holder.innerHTML = `<div class="stats-note">Loading more stats…</div>`;
+
+  const [extra, timeline] = await Promise.all([
+    fetchExtraStats(eventId, slug),
+    fetchTimeline(eventId, slug, homeId, awayId),
+  ]);
+
+  let html = "";
+  if (extra && (extra.offsides[0] || extra.saves[0])) {
+    html += `
+      ${extra.offsides[0] ? statBar(extra.offsides[0], extra.offsides[1], "Offsides") : ""}
+      ${extra.saves[0] ? statBar(extra.saves[0], extra.saves[1], "Goalkeeper Saves") : ""}`;
   }
-  holder.innerHTML = `
-    ${extra.offsides[0] ? statBar(extra.offsides[0], extra.offsides[1], "Offsides") : ""}
-    ${extra.saves[0] ? statBar(extra.saves[0], extra.saves[1], "Goalkeeper Saves") : ""}`;
+  if (timeline && timeline.length) {
+    html += `<div class="timeline">${timeline.map((t) => `
+      <div class="timeline-item"><span class="tmin">${t.clock || ""}</span><span>${t.icon} ${t.desc}${t.side ? ` (${t.side === "home" ? "H" : "A"})` : ""}</span></div>
+    `).join("")}</div>`;
+  }
+  holder.innerHTML = html;
 }
 
 function matchCard(event, slug, isLive) {
@@ -340,27 +467,123 @@ function matchCard(event, slug, isLive) {
     : `<span style="color:var(--text-dim); font-weight:700;">FT</span>`;
 
   return `
-    <details class="live-card" ontoggle="onMatchToggle(event, '${event.id}', '${slug}')">
+    <details class="live-card" ontoggle="onMatchToggle(event, '${event.id}', '${slug}', '${home.team.id}', '${away.team.id}')">
       <summary>
         <div class="live-league" style="justify-content:flex-end;">${statusBadge}</div>
         <div class="live-teams">
-          <div class="live-team"><img src="${home.team.logo || ""}" alt="" onerror="this.style.display='none'"><span>${home.team.shortDisplayName || home.team.displayName}</span></div>
+          <div class="live-team">${teamStar(home.team)}<img src="${home.team.logo || ""}" alt="" onerror="this.style.display='none'"><span>${home.team.shortDisplayName || home.team.displayName}</span></div>
           <div class="live-score" style="${isLive ? "" : "color:var(--text-dim);"}">${home.score} - ${away.score}</div>
-          <div class="live-team" style="justify-content:flex-end; text-align:right;"><span>${away.team.shortDisplayName || away.team.displayName}</span><img src="${away.team.logo || ""}" alt="" onerror="this.style.display='none'"></div>
+          <div class="live-team" style="justify-content:flex-end; text-align:right;"><span>${away.team.shortDisplayName || away.team.displayName}</span><img src="${away.team.logo || ""}" alt="" onerror="this.style.display='none'">${teamStar(away.team)}</div>
         </div>
       </summary>
       <div class="live-stats">
         ${baseStatsHtml(home, away)}
         <div id="extra-${event.id}"></div>
         ${summaryLink ? `<a class="live-more" href="${summaryLink.href}" target="_blank" rel="noopener">Full stats on ESPN →</a>` : ""}
+        ${!isLive ? `<button class="share-result-btn" onclick="event.stopPropagation(); shareResult('${escAttr(home.team.shortDisplayName || home.team.displayName)}','${escAttr(away.team.shortDisplayName || away.team.displayName)}','${home.score}','${away.score}')">📤 Share this result</button>` : ""}
       </div>
     </details>`;
+}
+
+async function shareResult(homeName, awayName, homeScore, awayScore) {
+  if (document.fonts && document.fonts.ready) await document.fonts.ready;
+  const canvas = document.getElementById("result-canvas");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, "#152B21");
+  grad.addColorStop(1, "#0E1B15");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.strokeStyle = "#E8B94B"; ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.arc(W / 2, 160, 55, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(W / 2, 160, 25, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = "#E8B94B";
+  ctx.beginPath(); ctx.arc(W / 2, 160, 9, 0, Math.PI * 2); ctx.fill();
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#E8B94B";
+  ctx.font = "700 34px Oswald, sans-serif";
+  ctx.fillText("SUREODDS HUB — FULL TIME", W / 2, 250);
+
+  ctx.fillStyle = "#F2F0E6";
+  ctx.font = "600 42px Oswald, sans-serif";
+  function wrap(text, y) {
+    if (ctx.measureText(text).width <= W - 120) { ctx.fillText(text, W / 2, y); return; }
+    const words = text.split(" "); let line = "";
+    for (const w of words) { const t = line + w + " "; if (ctx.measureText(t).width > W - 120) { ctx.fillText(line.trim(), W / 2, y); line = w + " "; y += 48; } else line = t; }
+    ctx.fillText(line.trim(), W / 2, y);
+  }
+  wrap(homeName, 420);
+  ctx.font = "700 90px Oswald, sans-serif"; ctx.fillStyle = "#E8B94B";
+  ctx.fillText(`${homeScore} - ${awayScore}`, W / 2, 560);
+  ctx.font = "600 42px Oswald, sans-serif"; ctx.fillStyle = "#F2F0E6";
+  wrap(awayName, 660);
+
+  ctx.font = "400 24px Inter, sans-serif"; ctx.fillStyle = "#6C8B7A";
+  ctx.fillText("Live scores & tips at SureOdds Hub", W / 2, H - 60);
+
+  const link = document.createElement("a");
+  link.download = `sureodds-result-${homeName.replace(/\s+/g, "-").toLowerCase()}.png`;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+}
+
+function soonCard(event, kickoffMs, now) {
+  const comp = event.competitions[0];
+  const home = comp.competitors.find((c) => c.homeAway === "home");
+  const away = comp.competitors.find((c) => c.homeAway === "away");
+  const diff = kickoffMs - now;
+  const mins = Math.round(diff / 60000);
+  const countdown = mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`;
+  const kickoffTime = new Date(kickoffMs).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return `
+    <div class="soon-card">
+      <div class="soon-teams">
+        <div class="soon-team">${teamStar(home.team)}<img src="${home.team.logo || ""}" alt="" onerror="this.style.display='none'"><span>${home.team.shortDisplayName || home.team.displayName}</span></div>
+        <div class="soon-vs">vs</div>
+        <div class="soon-team" style="justify-content:flex-end; text-align:right;"><span>${away.team.shortDisplayName || away.team.displayName}</span><img src="${away.team.logo || ""}" alt="" onerror="this.style.display='none'">${teamStar(away.team)}</div>
+      </div>
+      <div class="soon-meta"><span>${kickoffTime}</span><span class="soon-countdown">Kicks off in ${countdown}</span></div>
+    </div>`;
+}
+
+function renderMyTeams(liveEvents, upcomingEvents, finishedEvents, now) {
+  const wrap = document.getElementById("myteams-wrap");
+  const favs = getFavTeams();
+  if (Object.keys(favs).length === 0) { wrap.innerHTML = ""; return; }
+
+  const involvesFav = ({ event }) => {
+    const comp = event.competitions[0];
+    const home = comp.competitors.find((c) => c.homeAway === "home");
+    const away = comp.competitors.find((c) => c.homeAway === "away");
+    return !!(favs[home.team.id] || favs[away.team.id]);
+  };
+
+  const myLive = liveEvents.filter(involvesFav);
+  const myUpcoming = upcomingEvents.filter(involvesFav);
+  const myFinished = finishedEvents.filter(involvesFav);
+
+  if (myLive.length === 0 && myUpcoming.length === 0 && myFinished.length === 0) {
+    wrap.innerHTML = `<div class="myteams-section"><div class="myteams-header"><span>⭐</span><h2>My Teams</h2></div><div class="empty">No matches today for your followed teams.</div></div>`;
+    return;
+  }
+
+  const cards =
+    myLive.map(({ event, slug }) => matchCard(event, slug, true)).join("") +
+    myUpcoming.map(({ event, kickoffMs }) => soonCard(event, kickoffMs, now)).join("") +
+    myFinished.map(({ event, slug }) => matchCard(event, slug, false)).join("");
+
+  wrap.innerHTML = `<div class="myteams-section"><div class="myteams-header"><span>⭐</span><h2>My Teams</h2></div>${cards}</div>`;
 }
 
 function groupByLeague(events) {
   // events already arrive in LIVE_LEAGUES order (Promise.allSettled preserves
   // input order), so grouping by first-seen league name keeps big leagues
   // first automatically, matching the priority baked into that list.
+  // Favorited leagues (starred) are then pulled to the very front.
   const groups = [];
   const index = {};
   events.forEach((item) => {
@@ -370,6 +593,8 @@ function groupByLeague(events) {
     }
     groups[index[item.leagueName]].items.push(item);
   });
+  const favs = getFavLeagues();
+  groups.sort((a, b) => (favs[b.leagueName] ? 1 : 0) - (favs[a.leagueName] ? 1 : 0));
   return groups;
 }
 
@@ -423,14 +648,20 @@ async function loadLiveScores() {
     document.getElementById("last-updated").innerHTML =
       `<span class="dot"></span> Updated ${new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`;
 
+    renderMyTeams(liveEvents, upcomingEvents, finishedEvents, now);
+
     if (liveEvents.length === 0 && upcomingEvents.length === 0 && finishedEvents.length === 0) {
       wrap.innerHTML = `<div class="empty">No matches found for this date in the leagues we track.</div>`;
       return;
     }
 
     function renderLeagueGroups(groups, renderItem) {
+      const favs = getFavLeagues();
       return groups.map((g) => `
-        <div class="league-group-header">${g.leagueName}</div>
+        <div class="league-group-header">
+          <button class="star-btn ${favs[g.leagueName] ? "active" : ""}" onclick="toggleFavLeague('${g.leagueName.replace(/'/g, "\\'")}', event)" title="Follow this league">${favs[g.leagueName] ? "★" : "☆"}</button>
+          ${g.leagueName}
+        </div>
         ${g.items.map(renderItem).join("")}
       `).join("");
     }
@@ -444,24 +675,7 @@ async function loadLiveScores() {
     const upcomingHtml = upcomingEvents.length === 0 ? "" : `
       <section class="soon">
         <div class="soon-header"><span>📅</span><h2>${isToday(currentDate) ? "Upcoming Today" : "Fixtures"}</h2></div>
-        ${renderLeagueGroups(groupByLeague(upcomingEvents), ({ event, kickoffMs }) => {
-          const comp = event.competitions[0];
-          const home = comp.competitors.find((c) => c.homeAway === "home");
-          const away = comp.competitors.find((c) => c.homeAway === "away");
-          const diff = kickoffMs - now;
-          const mins = Math.round(diff / 60000);
-          const countdown = mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`;
-          const kickoffTime = new Date(kickoffMs).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-          return `
-            <div class="soon-card">
-              <div class="soon-teams">
-                <div class="soon-team"><img src="${home.team.logo || ""}" alt="" onerror="this.style.display='none'"><span>${home.team.shortDisplayName || home.team.displayName}</span></div>
-                <div class="soon-vs">vs</div>
-                <div class="soon-team" style="justify-content:flex-end; text-align:right;"><span>${away.team.shortDisplayName || away.team.displayName}</span><img src="${away.team.logo || ""}" alt="" onerror="this.style.display='none'"></div>
-              </div>
-              <div class="soon-meta"><span>${kickoffTime}</span><span class="soon-countdown">Kicks off in ${countdown}</span></div>
-            </div>`;
-        })}
+        ${renderLeagueGroups(groupByLeague(upcomingEvents), ({ event, kickoffMs }) => soonCard(event, kickoffMs, now))}
       </section>`;
 
     const finishedHtml = finishedEvents.length === 0 ? "" : `
@@ -471,14 +685,23 @@ async function loadLiveScores() {
       </section>`;
 
     wrap.innerHTML = liveHtml + upcomingHtml + finishedHtml;
+    applySearch();
   } catch (e) {
     wrap.innerHTML = `<div class="empty">Couldn't load live games right now. Check back shortly.</div>`;
   }
 }
 
 updateDateLabel();
+if (LEAGUE_DEEPLINK) {
+  document.getElementById("search-box").value = LEAGUE_NAME_MAP[LEAGUE_DEEPLINK] || LEAGUE_DEEPLINK;
+}
 loadLiveScores();
 refreshTimer = setInterval(loadLiveScores, 45000);
 </script>
+<!-- FREE ANALYTICS (optional): sign up free at https://www.goatcounter.com (no card needed),
+     then replace YOURCODE below with your GoatCounter site code to see visitor stats. -->
+<!--
+<script data-goatcounter="https://YOURCODE.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+-->
 </body>
 </html>

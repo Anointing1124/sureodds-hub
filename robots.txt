@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://anointing1124.github.io/sureodds-hub/sitemap.xml

@@ -355,6 +355,7 @@
 
   <div id="tenodds-wrap"></div>
 
+  <div class="filters" id="sport-filters"></div>
   <div class="filters" id="filters"></div>
 
   <div class="tips-list" id="tips-list">
@@ -560,12 +561,17 @@ function render(tips) {
       if (isNaN(na) || isNaN(nb)) return a.localeCompare(b);
       return na - nb;
     });
+  const sports = ["All", ...new Set(pendingTips.map((t) => t.sport).filter(Boolean))];
   const filtersEl = document.getElementById("filters");
+  const sportFiltersEl = document.getElementById("sport-filters");
   filtersEl.innerHTML = "";
+  sportFiltersEl.innerHTML = "";
   let active = "All";
+  let activeSport = "All";
 
   function draw() {
-    const list = (active === "All" ? pendingTips : pendingTips.filter((t) => t.category === active))
+    const list = pendingTips
+      .filter((t) => (active === "All" || t.category === active) && (activeSport === "All" || t.sport === activeSport))
       .slice()
       .sort((a, b) => {
         const oa = parseFloat(a.odds);
@@ -619,6 +625,20 @@ function render(tips) {
     };
     filtersEl.appendChild(btn);
   });
+
+  if (sports.length > 2) {
+    sports.forEach((sp) => {
+      const btn = document.createElement("button");
+      btn.className = "filter-btn" + (sp === "All" ? " active" : "");
+      btn.textContent = sp === "All" ? "All Sports" : `${sportIcon(sp)} ${sp}`;
+      btn.onclick = () => {
+        activeSport = sp;
+        [...sportFiltersEl.children].forEach((b) => b.classList.toggle("active", b === btn));
+        draw();
+      };
+      sportFiltersEl.appendChild(btn);
+    });
+  }
 
   draw();
 
@@ -843,5 +863,10 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./sw.js").catch(() => {});
 }
 </script>
+<!-- FREE ANALYTICS (optional): sign up free at https://www.goatcounter.com (no card needed),
+     then replace YOURCODE below with your GoatCounter site code to see visitor stats. -->
+<!--
+<script data-goatcounter="https://YOURCODE.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+-->
 </body>
 </html>

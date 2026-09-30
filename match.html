@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+  try { if (localStorage.getItem('sureodds_theme') === 'light') document.documentElement.setAttribute('data-theme','light'); } catch(e){}
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Match — SureOdds Hub</title>
+<meta name="description" content="Live match detail: score, goal scorers, cards, and full lineups.">
+<meta name="theme-color" content="#0E1B15">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230E1B15' stroke='%23E8B94B' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='%23E8B94B' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='5' fill='%23E8B94B'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0E1B15; --bg-elev:#152B21; --bg-card:#183326; --line:#254435;
+    --text:#F2F0E6; --text-dim:#9FB3A8;
+    --gold:#E8B94B; --green:#2FA972; --red:#E2574C;
+  }
+  :root[data-theme="light"]{
+    --bg:#FAF8F2; --bg-elev:#FFFFFF; --bg-card:#FFFFFF; --line:#E4E0D3;
+    --text:#16261C; --text-dim:#66756B;
+    --gold:#B8862A; --green:#1E7A4C; --red:#C0392B;
+  }
+  [data-theme="light"] header.top{background:rgba(250,248,242,0.92);}
+  [data-theme="light"] .score-card, [data-theme="light"] .section-card{box-shadow:0 1px 3px rgba(60,50,20,0.06);}
+  [data-theme="light"] .pitch-band{background:#EAF6EE; border-color:#BFE3CE;}
+  .theme-toggle-btn{
+    background:var(--bg-card); border:1px solid var(--line); color:var(--text);
+    width:32px; height:32px; border-radius:50%; font-size:0.9rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; padding:0; flex:0 0 auto;
+  }
+  .theme-toggle-btn:active{transform:scale(0.92);}
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--text);}
+  body{font-family:'Inter',system-ui,sans-serif; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);}
+  h1,h2,.headline{font-family:'Oswald',sans-serif; font-weight:600; margin:0;}
+  a{color:inherit;}
+  .wrap{max-width:760px; margin:0 auto; padding:0 18px;}
+
+  header.top{position:sticky; top:0; z-index:10; background:rgba(14,27,21,0.92); backdrop-filter:blur(6px); border-bottom:1px solid var(--line); padding:14px 0;}
+  header.top .wrap{display:flex; align-items:center; justify-content:space-between;}
+  .brand{display:flex; align-items:center; gap:8px;}
+  .brand .mark{color:var(--gold); font-family:'Oswald',sans-serif; font-weight:700; font-size:1.3rem;}
+  .brand .sub{color:var(--text-dim); font-size:0.78rem;}
+  .back-link{color:var(--text-dim); font-size:0.82rem; text-decoration:none;}
+
+  .score-card{
+    margin:20px 0; padding:20px; border-radius:14px;
+    background:var(--bg-card); border:1px solid var(--line); text-align:center;
+  }
+  .score-league{color:var(--text-dim); font-size:0.78rem; margin-bottom:14px;}
+  .score-teams{display:flex; align-items:center; justify-content:center; gap:18px;}
+  .score-team{flex:1; display:flex; flex-direction:column; align-items:center; gap:8px; min-width:0;}
+  .score-team img{width:44px; height:44px; object-fit:contain;}
+  .score-team span{font-size:0.92rem; font-weight:600; text-align:center;}
+  .score-mid{font-family:'Oswald',sans-serif; font-size:2.2rem; font-weight:700; color:var(--gold); flex:0 0 auto;}
+  .score-status{margin-top:10px; font-size:0.8rem; color:var(--text-dim);}
+  .score-status.live{color:var(--red); font-weight:700;}
+
+  .section-card{
+    background:var(--bg-card); border:1px solid var(--line); border-radius:12px;
+    padding:16px 18px; margin-bottom:16px;
+  }
+  .section-card h2{font-size:1rem; margin-bottom:12px;}
+  .empty-note{color:var(--text-dim); font-size:0.85rem; text-align:center; padding:10px 0;}
+
+  .timeline-item{display:flex; gap:10px; padding:6px 0; font-size:0.85rem; border-bottom:1px solid var(--line);}
+  .timeline-item:last-child{border-bottom:none;}
+  .timeline-item .tmin{color:var(--gold); font-weight:700; width:38px; flex:0 0 auto;}
+  .timeline-item .tside{color:var(--text-dim); font-size:0.72rem; flex:0 0 auto;}
+
+  .stat-row{display:flex; align-items:center; gap:8px; font-size:0.78rem; color:var(--text-dim); margin-bottom:6px;}
+  .stat-row .val{width:28px; text-align:center; flex:0 0 auto; color:var(--text);}
+  .stat-row .bar-wrap{flex:1; height:6px; background:var(--bg-elev); border-radius:3px; overflow:hidden; display:flex;}
+  .stat-row .bar-a{background:var(--gold); height:100%;}
+  .stat-row .bar-b{background:var(--green); height:100%;}
+  .stat-label{text-align:center; font-size:0.66rem; color:var(--text-dim); margin:-2px 0 9px;}
+
+  .lineup-team{margin-bottom:18px;}
+  .lineup-team:last-child{margin-bottom:0;}
+  .lineup-team-head{display:flex; align-items:center; gap:8px; margin-bottom:10px; font-weight:600; font-size:0.9rem;}
+  .lineup-team-head img{width:22px; height:22px; object-fit:contain;}
+  .lineup-formation{color:var(--text-dim); font-size:0.75rem; font-weight:400;}
+  .pitch-band{
+    background:#12261C; border:1px solid #2E5A42; border-radius:8px;
+    padding:8px 6px; margin-bottom:6px; display:flex; flex-wrap:wrap; justify-content:center; gap:14px;
+  }
+  .pitch-band-label{width:100%; text-align:center; font-size:0.62rem; color:var(--text-dim); margin-bottom:2px;}
+  .player-chip{display:flex; flex-direction:column; align-items:center; gap:2px; width:52px;}
+  .player-num{
+    width:26px; height:26px; border-radius:50%; background:var(--gold); color:#241900;
+    font-size:0.72rem; font-weight:700; display:flex; align-items:center; justify-content:center;
+  }
+  .player-name{font-size:0.62rem; text-align:center; color:var(--text); line-height:1.1; max-width:52px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .bench-list{margin-top:10px; padding-top:10px; border-top:1px dashed var(--line);}
+  .bench-title{color:var(--text-dim); font-size:0.7rem; margin-bottom:6px;}
+  .bench-chip{display:inline-block; font-size:0.72rem; color:var(--text-dim); margin:0 8px 6px 0;}
+
+  .share-result-btn{
+    display:block; width:100%; text-align:center; margin-top:6px; padding:11px 12px;
+    background:var(--bg-elev); border:1px solid var(--line); border-radius:8px;
+    color:var(--text); font-size:0.85rem; font-weight:600; cursor:pointer; font-family:inherit;
+  }
+  .share-result-btn:active{transform:scale(0.98);}
+
+  footer{border-top:1px solid var(--line); padding:22px 0 40px; margin-top:10px;}
+  footer p{color:var(--text-dim); font-size:0.75rem; line-height:1.6; margin:0;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a href="index.html" class="brand" style="text-decoration:none;">
+      <svg width="26" height="26" viewBox="0 0 64 64" style="flex:0 0 auto;">
+        <circle cx="32" cy="32" r="30" fill="#0E1B15" stroke="#E8B94B" stroke-width="4"/>
+        <circle cx="32" cy="32" r="14" fill="none" stroke="#E8B94B" stroke-width="3"/>
+        <circle cx="32" cy="32" r="5" fill="#E8B94B"/>
+      </svg>
+      <span class="mark">SureOdds</span><span class="sub">HUB</span>
+    </a>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <a class="back-link" href="live.html">&larr; Back to Live</a>
+      <button class="theme-toggle-btn" id="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light/dark theme">🌙</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="score-wrap"></div>
+  <div id="timeline-wrap"></div>
+  <div id="stats-wrap"></div>
+  <div id="lineups-wrap"></div>
+
+  <footer>
+    <p>Live data via ESPN's public scoreboard and match-report feeds. Provided for reference — always confirm with your bookie before placing a bet.</p>
+  </footer>
+</div>
+
+<canvas id="result-canvas" width="1080" height="1080" style="display:none;"></canvas>
+
+<script>
+function toggleTheme() {
+  const isLight = document.documentElement.getAttribute("data-theme") === "light";
+  if (isLight) { document.documentElement.removeAttribute("data-theme"); localStorage.setItem("sureodds_theme", "dark"); }
+  else { document.documentElement.setAttribute("data-theme", "light"); localStorage.setItem("sureodds_theme", "light"); }
+  updateThemeIcon();
+}
+function updateThemeIcon() {
+  const btn = document.getElementById("theme-toggle");
+  if (!btn) return;
+  btn.textContent = document.documentElement.getAttribute("data-theme") === "light" ? "☀️" : "🌙";
+}
+updateThemeIcon();
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function fetchWithTimeout(url, ms) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return fetch(url, { cache: "no-store", signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
+async function shareResult(homeName, awayName, homeScore, awayScore) {
+  if (document.fonts && document.fonts.ready) await document.fonts.ready;
+  const canvas = document.getElementById("result-canvas");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, "#152B21"); grad.addColorStop(1, "#0E1B15");
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+
+  ctx.strokeStyle = "#E8B94B"; ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.arc(W / 2, 160, 55, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(W / 2, 160, 25, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = "#E8B94B";
+  ctx.beginPath(); ctx.arc(W / 2, 160, 9, 0, Math.PI * 2); ctx.fill();
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#E8B94B";
+  ctx.font = "700 34px Oswald, sans-serif";
+  ctx.fillText("SUREODDS HUB — FULL TIME", W / 2, 250);
+
+  ctx.fillStyle = "#F2F0E6";
+  ctx.font = "600 42px Oswald, sans-serif";
+  function wrap(text, y) {
+    if (ctx.measureText(text).width <= W - 120) { ctx.fillText(text, W / 2, y); return; }
+    const words = text.split(" "); let line = "";
+    for (const w of words) { const t = line + w + " "; if (ctx.measureText(t).width > W - 120) { ctx.fillText(line.trim(), W / 2, y); line = w + " "; y += 48; } else line = t; }
+    ctx.fillText(line.trim(), W / 2, y);
+  }
+  wrap(homeName, 420);
+  ctx.font = "700 90px Oswald, sans-serif"; ctx.fillStyle = "#E8B94B";
+  ctx.fillText(`${homeScore} - ${awayScore}`, W / 2, 560);
+  ctx.font = "600 42px Oswald, sans-serif"; ctx.fillStyle = "#F2F0E6";
+  wrap(awayName, 660);
+
+  ctx.font = "400 24px Inter, sans-serif"; ctx.fillStyle = "#6C8B7A";
+  ctx.fillText("Live scores & tips at SureOdds Hub", W / 2, H - 60);
+
+  const link = document.createElement("a");
+  link.download = `sureodds-result-${homeName.replace(/\s+/g, "-").toLowerCase()}.png`;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+}
+
+// ============ Read match info from URL (instant render, no fetch needed) ============
+const params = new URLSearchParams(location.search);
+const EVENT_ID = params.get("event");
+const SLUG = params.get("slug");
+const LEAGUE = params.get("league") || "";
+const HOME_NAME = params.get("home") || "Home";
+const AWAY_NAME = params.get("away") || "Away";
+const HOME_LOGO = params.get("homeLogo") || "";
+const AWAY_LOGO = params.get("awayLogo") || "";
+const HOME_SCORE = params.get("homeScore") || "-";
+const AWAY_SCORE = params.get("awayScore") || "-";
+const STATUS = params.get("status") || "";
+const IS_LIVE = /\d+'/.test(STATUS);
+const IS_FINISHED = STATUS === "FT";
+
+function renderScoreHeader() {
+  document.title = `${HOME_NAME} vs ${AWAY_NAME} — SureOdds Hub`;
+  document.getElementById("score-wrap").innerHTML = `
+    <div class="score-card">
+      ${LEAGUE ? `<div class="score-league">${esc(LEAGUE)}</div>` : ""}
+      <div class="score-teams">
+        <div class="score-team"><img src="${esc(HOME_LOGO)}" alt="" onerror="this.style.display='none'"><span>${esc(HOME_NAME)}</span></div>
+        <div class="score-mid">${esc(HOME_SCORE)} - ${esc(AWAY_SCORE)}</div>
+        <div class="score-team"><img src="${esc(AWAY_LOGO)}" alt="" onerror="this.style.display='none'"><span>${esc(AWAY_NAME)}</span></div>
+      </div>
+      <div class="score-status ${IS_LIVE ? "live" : ""}">${IS_LIVE ? "🔴 " + esc(STATUS) : IS_FINISHED ? "Full Time" : esc(STATUS)}</div>
+      ${IS_FINISHED ? `<button class="share-result-btn" onclick="shareResult('${esc(HOME_NAME)}','${esc(AWAY_NAME)}','${esc(HOME_SCORE)}','${esc(AWAY_SCORE)}')">📤 Share this result</button>` : ""}
+    </div>`;
+}
+renderScoreHeader();
+
+if (!EVENT_ID || !SLUG) {
+  document.getElementById("timeline-wrap").innerHTML = `<div class="section-card"><div class="empty-note">Missing match info — go back and tap a match again.</div></div>`;
+} else {
+  loadMatchDetails();
+}
+
+function statRow(homeVal, awayVal, label) {
+  const h = parseFloat(homeVal) || 0, a = parseFloat(awayVal) || 0;
+  const total = h + a || 1;
+  const hPct = (h / total) * 100;
+  return `
+    <div class="stat-row">
+      <span class="val">${homeVal ?? "-"}</span>
+      <div class="bar-wrap"><div class="bar-a" style="width:${hPct}%"></div><div class="bar-b" style="width:${100 - hPct}%"></div></div>
+      <span class="val">${awayVal ?? "-"}</span>
+    </div>
+    <div class="stat-label">${label}</div>`;
+}
+function findStat(stats, names) {
+  for (const name of names) {
+    const s = (stats || []).find((x) => x.name === name);
+    if (s) return s.displayValue;
+  }
+  return null;
+}
+
+const POSITION_GROUPS = [
+  { key: "FWD", label: "Forwards", match: /^(F|FW|ST)/i },
+  { key: "MID", label: "Midfielders", match: /^(M|MF)/i },
+  { key: "DEF", label: "Defenders", match: /^(D|DF)/i },
+  { key: "GK", label: "Goalkeeper", match: /^(G|GK)/i },
+];
+function groupKeyFor(posAbbr) {
+  const found = POSITION_GROUPS.find((g) => g.match.test(posAbbr || ""));
+  return found ? found.key : "MID";
+}
+
+function renderLineupTeam(teamName, teamLogo, formation, starters, bench) {
+  const groups = { FWD: [], MID: [], DEF: [], GK: [] };
+  starters.forEach((p) => groups[groupKeyFor(p.pos)].push(p));
+
+  const bands = POSITION_GROUPS.map((g) => {
+    if (groups[g.key].length === 0) return "";
+    return `
+      <div class="pitch-band">
+        <div class="pitch-band-label">${g.label}</div>
+        ${groups[g.key].map((p) => `
+          <div class="player-chip">
+            <div class="player-num">${esc(p.jersey || "")}</div>
+            <div class="player-name">${esc(p.name)}</div>
+          </div>`).join("")}
+      </div>`;
+  }).join("");
+
+  return `
+    <div class="lineup-team">
+      <div class="lineup-team-head">
+        <img src="${esc(teamLogo)}" alt="" onerror="this.style.display='none'">
+        ${esc(teamName)} ${formation ? `<span class="lineup-formation">(${esc(formation)})</span>` : ""}
+      </div>
+      ${bands}
+      ${bench.length ? `
+        <div class="bench-list">
+          <div class="bench-title">Substitutes</div>
+          ${bench.map((p) => `<span class="bench-chip">#${esc(p.jersey || "")} ${esc(p.name)}</span>`).join("")}
+        </div>` : ""}
+    </div>`;
+}
+
+async function loadMatchDetails() {
+  const timelineWrap = document.getElementById("timeline-wrap");
+  const statsWrap = document.getElementById("stats-wrap");
+  const lineupsWrap = document.getElementById("lineups-wrap");
+  timelineWrap.innerHTML = `<div class="section-card"><div class="empty-note">Loading match details…</div></div>`;
+
+  const [summaryResult, playsResult] = await Promise.allSettled([
+    fetchWithTimeout(`https://site.api.espn.com/apis/site/v2/sports/soccer/${SLUG}/summary?event=${EVENT_ID}`, 8000).then((r) => r.ok ? r.json() : null),
+    fetchWithTimeout(`https://sports.core.api.espn.com/v2/sports/soccer/leagues/${SLUG}/events/${EVENT_ID}/competitions/${EVENT_ID}/plays?limit=300`, 8000).then((r) => r.ok ? r.json() : null),
+  ]);
+
+  const summary = summaryResult.status === "fulfilled" ? summaryResult.value : null;
+  const playsData = playsResult.status === "fulfilled" ? playsResult.value : null;
+
+  // ---------- Stats (possession, shots, offsides, saves) ----------
+  const teams = summary && summary.boxscore && summary.boxscore.teams;
+  if (Array.isArray(teams) && teams.length >= 2) {
+    const h = teams[0].statistics, a = teams[1].statistics;
+    const hPoss = findStat(h, ["possessionPct"]), aPoss = findStat(a, ["possessionPct"]);
+    const hShots = findStat(h, ["totalShots"]), aShots = findStat(a, ["totalShots"]);
+    const hSOT = findStat(h, ["shotsOnTarget"]), aSOT = findStat(a, ["shotsOnTarget"]);
+    const hCorners = findStat(h, ["wonCorners"]), aCorners = findStat(a, ["wonCorners"]);
+    const hFouls = findStat(h, ["foulsCommitted"]), aFouls = findStat(a, ["foulsCommitted"]);
+    const hOff = findStat(h, ["offsides"]), aOff = findStat(a, ["offsides"]);
+    const hSaves = findStat(h, ["saves", "goalkeeperSaves", "goalKeeperSaves"]), aSaves = findStat(a, ["saves", "goalkeeperSaves", "goalKeeperSaves"]);
+    let statsHtml = "";
+    if (hPoss) statsHtml += statRow(hPoss + "%", aPoss + "%", "Possession");
+    if (hShots) statsHtml += statRow(hShots, aShots, "Shots");
+    if (hSOT) statsHtml += statRow(hSOT, aSOT, "Shots on Target");
+    if (hCorners) statsHtml += statRow(hCorners, aCorners, "Corners");
+    if (hFouls) statsHtml += statRow(hFouls, aFouls, "Fouls");
+    if (hOff) statsHtml += statRow(hOff, aOff, "Offsides");
+    if (hSaves) statsHtml += statRow(hSaves, aSaves, "Goalkeeper Saves");
+    statsWrap.innerHTML = statsHtml
+      ? `<div class="section-card"><h2>Match Stats</h2>${statsHtml}</div>`
+      : `<div class="section-card"><h2>Match Stats</h2><div class="empty-note">Stats aren't available for this match yet.</div></div>`;
+  } else {
+    statsWrap.innerHTML = `<div class="section-card"><h2>Match Stats</h2><div class="empty-note">Stats aren't available for this match yet.</div></div>`;
+  }
+
+  // ---------- Timeline (goals + cards, with scorer/assist names from ESPN's text) ----------
+  const items = (playsData && playsData.items) || [];
+  const getTeamId = (play) => {
+    if (!play.team) return null;
+    if (play.team.id) return String(play.team.id);
+    if (play.team.$ref) { const m = play.team.$ref.match(/teams\/(\d+)/); return m ? m[1] : null; }
+    return null;
+  };
+  const timeline = [];
+  items.forEach((p) => {
+    const typeText = (p.type && p.type.text) || "";
+    const isGoal = p.scoringPlay === true;
+    const isYellow = /yellow card/i.test(typeText);
+    const isRed = /red card/i.test(typeText);
+    if (!isGoal && !isYellow && !isRed) return;
+    const teamId = getTeamId(p);
+    const clock = (p.clock && p.clock.displayValue) || "";
+    const icon = isGoal ? "⚽" : isRed ? "🟥" : "🟨";
+    timeline.push({ clock, icon, desc: (p.text || typeText || "").trim(), teamId });
+  });
+
+  timelineWrap.innerHTML = timeline.length
+    ? `<div class="section-card"><h2>Goals &amp; Cards</h2>${timeline.map((t) => `
+        <div class="timeline-item"><span class="tmin">${esc(t.clock)}</span><span>${t.icon} ${esc(t.desc)}</span></div>
+      `).join("")}</div>`
+    : `<div class="section-card"><h2>Goals &amp; Cards</h2><div class="empty-note">${IS_FINISHED || IS_LIVE ? "No goals or cards recorded yet." : "Not available until the match starts."}</div></div>`;
+
+  // ---------- Lineups & formations ----------
+  const rosters = summary && summary.rosters;
+  if (Array.isArray(rosters) && rosters.length >= 2) {
+    const teamHtml = rosters.slice(0, 2).map((r) => {
+      const teamName = (r.team && (r.team.displayName || r.team.name)) || "Team";
+      const teamLogo = (r.team && r.team.logo) || "";
+      const formation = r.formation || "";
+      const roster = r.roster || [];
+      const starters = [], bench = [];
+      roster.forEach((p) => {
+        const entry = {
+          name: (p.athlete && (p.athlete.shortName || p.athlete.displayName)) || "Unknown",
+          jersey: p.jersey || (p.athlete && p.athlete.jersey) || "",
+          pos: (p.position && p.position.abbreviation) || "",
+        };
+        if (p.starter) starters.push(entry); else bench.push(entry);
+      });
+      if (starters.length === 0) return "";
+      return renderLineupTeam(teamName, teamLogo, formation, starters, bench);
+    }).join("");
+
+    lineupsWrap.innerHTML = teamHtml
+      ? `<div class="section-card"><h2>Lineups &amp; Formations</h2>${teamHtml}</div>`
+      : `<div class="section-card"><h2>Lineups &amp; Formations</h2><div class="empty-note">${IS_LIVE || IS_FINISHED ? "Lineups aren't available for this match." : "Lineups are usually published shortly before kickoff — check back closer to the match."}</div></div>`;
+  } else {
+    lineupsWrap.innerHTML = `<div class="section-card"><h2>Lineups &amp; Formations</h2><div class="empty-note">${IS_LIVE || IS_FINISHED ? "Lineups aren't available for this match." : "Lineups are usually published shortly before kickoff — check back closer to the match."}</div></div>`;
+  }
+}
+</script>
+</body>
+</html>

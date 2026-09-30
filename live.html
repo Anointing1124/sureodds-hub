@@ -67,15 +67,8 @@
     background:var(--bg-card); border:1px solid #3A2020; border-radius:10px;
     padding:14px 16px; margin-bottom:10px;
   }
-  .live-card summary{cursor:pointer; list-style:none;}
-  .live-card summary::-webkit-details-marker{display:none;}
-  .live-card summary::after{
-    content:"▾ tap for stats"; display:block; text-align:center; color:var(--text-dim);
-    font-size:0.68rem; margin-top:8px;
-  }
-  .live-card[open] summary::after{content:"▴ hide stats";}
-  .live-card:active{opacity:0.9;}
-  .stats-note{color:var(--text-dim); font-size:0.75rem; text-align:center; padding:6px 0;}
+  .live-card:active{opacity:0.85; transform:scale(0.99);}
+  .tap-hint{text-align:center; color:var(--text-dim); font-size:0.68rem; margin-top:8px;}
   .live-league{color:var(--text-dim); font-size:0.72rem; margin-bottom:8px; display:flex; justify-content:space-between;}
   .live-minute{color:var(--red); font-weight:700;}
   .live-teams{display:flex; align-items:center; justify-content:space-between; gap:10px;}
@@ -83,7 +76,6 @@
   .live-team img{width:22px; height:22px; object-fit:contain; flex:0 0 auto;}
   .live-team span{font-size:0.9rem; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .live-score{font-family:'Oswald',sans-serif; font-size:1.3rem; font-weight:700; color:var(--gold); padding:0 10px; flex:0 0 auto;}
-  .live-stats{margin-top:12px; padding-top:10px; border-top:1px solid var(--line);}
   .live-stat-row{display:flex; align-items:center; gap:8px; font-size:0.72rem; color:var(--text-dim); margin-bottom:5px;}
   .live-stat-row .val{width:28px; text-align:center; flex:0 0 auto; color:var(--text);}
   .live-stat-row .bar-wrap{flex:1; height:5px; background:var(--line); border-radius:3px; overflow:hidden; display:flex;}
@@ -95,6 +87,7 @@
     background:var(--bg-card); border:1px solid var(--line); border-radius:10px;
     padding:12px 16px; margin-bottom:10px;
   }
+  .soon-card:active{opacity:0.85; transform:scale(0.99);}
   .soon-header{display:flex; align-items:center; gap:8px; margin-bottom:12px; margin-top:26px;}
   .soon-header h2{font-size:1.05rem;}
   .soon-teams{display:flex; align-items:center; justify-content:space-between; gap:10px;}
@@ -131,17 +124,6 @@
   .myteams-section{margin:14px 0 6px;}
   .myteams-header{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
   .myteams-header h2{font-size:1.05rem; color:var(--gold);}
-
-  .share-result-btn{
-    display:block; width:100%; text-align:center; margin-top:10px; padding:9px 12px;
-    background:var(--bg-elev); border:1px solid var(--line); border-radius:6px;
-    color:var(--text); font-size:0.8rem; font-weight:600; cursor:pointer; font-family:inherit;
-  }
-  .share-result-btn:active{transform:scale(0.98);}
-
-  .timeline{margin-top:10px; padding-top:10px; border-top:1px solid var(--line);}
-  .timeline-item{display:flex; gap:8px; font-size:0.78rem; padding:3px 0; color:var(--text-dim);}
-  .timeline-item .tmin{color:var(--gold); font-weight:600; width:34px; flex:0 0 auto;}
 
   .date-nav{display:flex; align-items:center; justify-content:space-between; margin:18px 0 4px; gap:10px;}
   .date-nav-btn{
@@ -202,7 +184,6 @@
   </footer>
 </div>
 
-<canvas id="result-canvas" width="1080" height="1080" style="display:none;"></canvas>
 
 <script>
 function toggleTheme() {
@@ -247,9 +228,6 @@ function toggleFavLeague(name, e) {
 function teamStar(team) {
   const isFav = !!getFavTeams()[team.id];
   return `<button class="star-btn ${isFav ? "active" : ""}" onclick="toggleFavTeam('${team.id}', '${(team.displayName || "").replace(/'/g, "\\'")}', event)" title="Follow this team">${isFav ? "★" : "☆"}</button>`;
-}
-function escAttr(s) {
-  return String(s ?? "").replace(/'/g, "&#39;").replace(/"/g, "&quot;");
 }
 
 // ============ Search filter — client-side, filters already-rendered cards ============
@@ -387,196 +365,38 @@ function baseStatsHtml(home, away) {
     ${hFouls ? statBar(hFouls, aFouls, "Fouls") : ""}`;
 }
 
-/** Fetches with a hard timeout so a slow/unresponsive endpoint can never leave
- *  the UI stuck — it fails fast instead, and the caller shows a fallback. */
-function fetchWithTimeout(url, ms) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), ms);
-  return fetch(url, { cache: "no-store", signal: controller.signal }).finally(() => clearTimeout(timer));
-}
-
-/** Attempts to fetch offsides + goalkeeper saves from ESPN's deeper summary
- *  endpoint. Best-effort: if it fails or times out, returns null quietly. */
-async function fetchExtraStats(eventId, slug) {
-  if (extraStatsCache[eventId] !== undefined) return extraStatsCache[eventId];
-  try {
-    const res = await fetchWithTimeout(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/summary?event=${eventId}`, 7000);
-    if (!res.ok) throw new Error("bad response");
-    const data = await res.json();
-    const teams = data.boxscore && data.boxscore.teams;
-    if (!Array.isArray(teams) || teams.length < 2) throw new Error("no boxscore");
-
-    const getVal = (stats, candidates) => {
-      for (const name of candidates) {
-        const s = (stats || []).find((x) => x.name === name);
-        if (s) return s.displayValue;
-      }
-      return null;
-    };
-
-    const result = {
-      offsides: teams.map((t) => getVal(t.statistics, ["offsides"])),
-      saves: teams.map((t) => getVal(t.statistics, ["saves", "goalkeeperSaves", "goalKeeperSaves"])),
-    };
-    extraStatsCache[eventId] = result;
-    return result;
-  } catch (e) {
-    extraStatsCache[eventId] = null;
-    return null;
-  }
-}
-
-/** Best-effort goal/card timeline from ESPN's Core API play-by-play endpoint.
- *  This endpoint's exact response shape isn't something I could verify directly,
- *  so this is defensive: if the fields don't match what's expected, or the
- *  request times out, it just returns nothing rather than breaking the page. */
-async function fetchTimeline(eventId, slug, homeId, awayId) {
-  const cacheKey = eventId + "-timeline";
-  if (extraStatsCache[cacheKey] !== undefined) return extraStatsCache[cacheKey];
-  try {
-    const res = await fetchWithTimeout(`https://sports.core.api.espn.com/v2/sports/soccer/leagues/${slug}/events/${eventId}/competitions/${eventId}/plays?limit=300`, 7000);
-    if (!res.ok) throw new Error("bad response");
-    const data = await res.json();
-    const items = data.items || [];
-    const getTeamId = (play) => {
-      if (!play.team) return null;
-      if (play.team.id) return String(play.team.id);
-      if (play.team.$ref) {
-        const m = play.team.$ref.match(/teams\/(\d+)/);
-        return m ? m[1] : null;
-      }
-      return null;
-    };
-    const timeline = [];
-    items.forEach((p) => {
-      const typeText = (p.type && p.type.text) || "";
-      const isGoal = p.scoringPlay === true;
-      const isYellow = /yellow card/i.test(typeText);
-      const isRed = /red card/i.test(typeText);
-      if (!isGoal && !isYellow && !isRed) return;
-      const teamId = getTeamId(p);
-      const side = teamId === String(homeId) ? "home" : teamId === String(awayId) ? "away" : null;
-      const clock = (p.clock && p.clock.displayValue) || "";
-      const icon = isGoal ? "⚽" : isRed ? "🟥" : "🟨";
-      const desc = (p.text || typeText || "").trim();
-      timeline.push({ clock, icon, desc, side });
-    });
-    extraStatsCache[cacheKey] = timeline.length ? timeline : null;
-    return extraStatsCache[cacheKey];
-  } catch (e) {
-    extraStatsCache[cacheKey] = null;
-    return null;
-  }
-}
-
-async function onMatchToggle(e, eventId, slug, homeId, awayId) {
-  if (!e.target.open) return; // only act on expand, not collapse
-  const holder = document.getElementById(`extra-${eventId}`);
-  if (!holder || holder.dataset.loaded === "1") return;
-  holder.dataset.loaded = "1";
-  holder.innerHTML = `<div class="stats-note">Loading more stats…</div>`;
-
-  // allSettled, not all: if one endpoint fails or times out, the other's
-  // result still shows — a single bad request can never block everything.
-  const [extraResult, timelineResult] = await Promise.allSettled([
-    fetchExtraStats(eventId, slug),
-    fetchTimeline(eventId, slug, homeId, awayId),
-  ]);
-  const extra = extraResult.status === "fulfilled" ? extraResult.value : null;
-  const timeline = timelineResult.status === "fulfilled" ? timelineResult.value : null;
-
-  let html = "";
-  if (extra && (extra.offsides[0] || extra.saves[0])) {
-    html += `
-      ${extra.offsides[0] ? statBar(extra.offsides[0], extra.offsides[1], "Offsides") : ""}
-      ${extra.saves[0] ? statBar(extra.saves[0], extra.saves[1], "Goalkeeper Saves") : ""}`;
-  }
-  if (timeline && timeline.length) {
-    html += `<div class="timeline">${timeline.map((t) => `
-      <div class="timeline-item"><span class="tmin">${t.clock || ""}</span><span>${t.icon} ${t.desc}${t.side ? ` (${t.side === "home" ? "H" : "A"})` : ""}</span></div>
-    `).join("")}</div>`;
-  }
-  // Never leave the "Loading…" text stuck — if nothing came back, say so plainly.
-  holder.innerHTML = html || `<div class="stats-note">No additional stats available for this match. <a href="https://www.espn.com" target="_blank" rel="noopener" style="color:var(--gold);">Check ESPN directly</a> for goal scorers and cards.</div>`;
-}
-
-
-function matchCard(event, slug, isLive) {
+function matchCard(event, slug, isLive, leagueName) {
   const comp = event.competitions[0];
   const home = comp.competitors.find((c) => c.homeAway === "home");
   const away = comp.competitors.find((c) => c.homeAway === "away");
   const minute = comp.status.displayClock || "";
-  const summaryLink = (event.links && event.links.find((l) => l.rel.includes("summary"))) || null;
   const statusBadge = isLive
     ? `<span class="live-minute">🔴 ${minute}</span>`
     : `<span style="color:var(--text-dim); font-weight:700;">FT</span>`;
 
+  const params = new URLSearchParams({
+    event: event.id, slug, league: leagueName || "",
+    home: home.team.shortDisplayName || home.team.displayName,
+    away: away.team.shortDisplayName || away.team.displayName,
+    homeLogo: home.team.logo || "", awayLogo: away.team.logo || "",
+    homeScore: home.score, awayScore: away.score,
+    status: isLive ? `${minute}'` : "FT",
+  });
+  const href = `match.html?${params.toString()}`;
+
   return `
-    <details class="live-card" ontoggle="onMatchToggle(event, '${event.id}', '${slug}', '${home.team.id}', '${away.team.id}')">
-      <summary>
-        <div class="live-league" style="justify-content:flex-end;">${statusBadge}</div>
-        <div class="live-teams">
-          <div class="live-team">${teamStar(home.team)}<img src="${home.team.logo || ""}" alt="" onerror="this.style.display='none'"><span>${home.team.shortDisplayName || home.team.displayName}</span></div>
-          <div class="live-score" style="${isLive ? "" : "color:var(--text-dim);"}">${home.score} - ${away.score}</div>
-          <div class="live-team" style="justify-content:flex-end; text-align:right;"><span>${away.team.shortDisplayName || away.team.displayName}</span><img src="${away.team.logo || ""}" alt="" onerror="this.style.display='none'">${teamStar(away.team)}</div>
-        </div>
-      </summary>
-      <div class="live-stats">
-        ${baseStatsHtml(home, away)}
-        <div id="extra-${event.id}"></div>
-        ${summaryLink ? `<a class="live-more" href="${summaryLink.href}" target="_blank" rel="noopener">Full stats on ESPN →</a>` : ""}
-        ${!isLive ? `<button class="share-result-btn" onclick="event.stopPropagation(); shareResult('${escAttr(home.team.shortDisplayName || home.team.displayName)}','${escAttr(away.team.shortDisplayName || away.team.displayName)}','${home.score}','${away.score}')">📤 Share this result</button>` : ""}
+    <div class="live-card" onclick="location.href='${href}'" style="cursor:pointer;">
+      <div class="live-league" style="justify-content:flex-end;">${statusBadge}</div>
+      <div class="live-teams">
+        <div class="live-team">${teamStar(home.team)}<img src="${home.team.logo || ""}" alt="" onerror="this.style.display='none'"><span>${home.team.shortDisplayName || home.team.displayName}</span></div>
+        <div class="live-score" style="${isLive ? "" : "color:var(--text-dim);"}">${home.score} - ${away.score}</div>
+        <div class="live-team" style="justify-content:flex-end; text-align:right;"><span>${away.team.shortDisplayName || away.team.displayName}</span><img src="${away.team.logo || ""}" alt="" onerror="this.style.display='none'">${teamStar(away.team)}</div>
       </div>
-    </details>`;
+      <div class="tap-hint">View lineups, goals &amp; cards →</div>
+    </div>`;
 }
 
-async function shareResult(homeName, awayName, homeScore, awayScore) {
-  if (document.fonts && document.fonts.ready) await document.fonts.ready;
-  const canvas = document.getElementById("result-canvas");
-  const ctx = canvas.getContext("2d");
-  const W = canvas.width, H = canvas.height;
-
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, "#152B21");
-  grad.addColorStop(1, "#0E1B15");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-
-  ctx.strokeStyle = "#E8B94B"; ctx.lineWidth = 6;
-  ctx.beginPath(); ctx.arc(W / 2, 160, 55, 0, Math.PI * 2); ctx.stroke();
-  ctx.beginPath(); ctx.arc(W / 2, 160, 25, 0, Math.PI * 2); ctx.stroke();
-  ctx.fillStyle = "#E8B94B";
-  ctx.beginPath(); ctx.arc(W / 2, 160, 9, 0, Math.PI * 2); ctx.fill();
-
-  ctx.textAlign = "center";
-  ctx.fillStyle = "#E8B94B";
-  ctx.font = "700 34px Oswald, sans-serif";
-  ctx.fillText("SUREODDS HUB — FULL TIME", W / 2, 250);
-
-  ctx.fillStyle = "#F2F0E6";
-  ctx.font = "600 42px Oswald, sans-serif";
-  function wrap(text, y) {
-    if (ctx.measureText(text).width <= W - 120) { ctx.fillText(text, W / 2, y); return; }
-    const words = text.split(" "); let line = "";
-    for (const w of words) { const t = line + w + " "; if (ctx.measureText(t).width > W - 120) { ctx.fillText(line.trim(), W / 2, y); line = w + " "; y += 48; } else line = t; }
-    ctx.fillText(line.trim(), W / 2, y);
-  }
-  wrap(homeName, 420);
-  ctx.font = "700 90px Oswald, sans-serif"; ctx.fillStyle = "#E8B94B";
-  ctx.fillText(`${homeScore} - ${awayScore}`, W / 2, 560);
-  ctx.font = "600 42px Oswald, sans-serif"; ctx.fillStyle = "#F2F0E6";
-  wrap(awayName, 660);
-
-  ctx.font = "400 24px Inter, sans-serif"; ctx.fillStyle = "#6C8B7A";
-  ctx.fillText("Live scores & tips at SureOdds Hub", W / 2, H - 60);
-
-  const link = document.createElement("a");
-  link.download = `sureodds-result-${homeName.replace(/\s+/g, "-").toLowerCase()}.png`;
-  link.href = canvas.toDataURL("image/png");
-  link.click();
-}
-
-function soonCard(event, kickoffMs, now) {
+function soonCard(event, kickoffMs, now, slug, leagueName) {
   const comp = event.competitions[0];
   const home = comp.competitors.find((c) => c.homeAway === "home");
   const away = comp.competitors.find((c) => c.homeAway === "away");
@@ -584,14 +404,25 @@ function soonCard(event, kickoffMs, now) {
   const mins = Math.round(diff / 60000);
   const countdown = mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`;
   const kickoffTime = new Date(kickoffMs).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+
+  const linkParams = new URLSearchParams({
+    event: event.id, slug, league: leagueName || "",
+    home: home.team.shortDisplayName || home.team.displayName,
+    away: away.team.shortDisplayName || away.team.displayName,
+    homeLogo: home.team.logo || "", awayLogo: away.team.logo || "",
+    homeScore: "-", awayScore: "-", status: "Upcoming",
+  });
+  const href = `match.html?${linkParams.toString()}`;
+
   return `
-    <div class="soon-card">
+    <div class="soon-card" onclick="location.href='${href}'" style="cursor:pointer;">
       <div class="soon-teams">
         <div class="soon-team">${teamStar(home.team)}<img src="${home.team.logo || ""}" alt="" onerror="this.style.display='none'"><span>${home.team.shortDisplayName || home.team.displayName}</span></div>
         <div class="soon-vs">vs</div>
         <div class="soon-team" style="justify-content:flex-end; text-align:right;"><span>${away.team.shortDisplayName || away.team.displayName}</span><img src="${away.team.logo || ""}" alt="" onerror="this.style.display='none'">${teamStar(away.team)}</div>
       </div>
       <div class="soon-meta"><span>${kickoffTime}</span><span class="soon-countdown">Kicks off in ${countdown}</span></div>
+      <div class="tap-hint">Tap for lineups when available →</div>
     </div>`;
 }
 
@@ -617,9 +448,9 @@ function renderMyTeams(liveEvents, upcomingEvents, finishedEvents, now) {
   }
 
   const cards =
-    myLive.map(({ event, slug }) => matchCard(event, slug, true)).join("") +
-    myUpcoming.map(({ event, kickoffMs }) => soonCard(event, kickoffMs, now)).join("") +
-    myFinished.map(({ event, slug }) => matchCard(event, slug, false)).join("");
+    myLive.map(({ event, slug, leagueName }) => matchCard(event, slug, true, leagueName)).join("") +
+    myUpcoming.map(({ event, kickoffMs, slug, leagueName }) => soonCard(event, kickoffMs, now, slug, leagueName)).join("") +
+    myFinished.map(({ event, slug, leagueName }) => matchCard(event, slug, false, leagueName)).join("");
 
   wrap.innerHTML = `<div class="myteams-section"><div class="myteams-header"><span>⭐</span><h2>My Teams</h2></div>${cards}</div>`;
 }
@@ -714,19 +545,19 @@ async function loadLiveScores() {
     const liveHtml = liveEvents.length === 0 ? "" : `
       <section class="live">
         <div class="live-header"><span class="live-dot"></span><h2>Live Now</h2></div>
-        ${renderLeagueGroups(groupByLeague(liveEvents), ({ event, slug }) => matchCard(event, slug, true))}
+        ${renderLeagueGroups(groupByLeague(liveEvents), ({ event, slug, leagueName }) => matchCard(event, slug, true, leagueName))}
       </section>`;
 
     const upcomingHtml = upcomingEvents.length === 0 ? "" : `
       <section class="soon">
         <div class="soon-header"><span>📅</span><h2>${isToday(currentDate) ? "Upcoming Today" : "Fixtures"}</h2></div>
-        ${renderLeagueGroups(groupByLeague(upcomingEvents), ({ event, kickoffMs }) => soonCard(event, kickoffMs, now))}
+        ${renderLeagueGroups(groupByLeague(upcomingEvents), ({ event, kickoffMs, slug, leagueName }) => soonCard(event, kickoffMs, now, slug, leagueName))}
       </section>`;
 
     const finishedHtml = finishedEvents.length === 0 ? "" : `
       <section class="finished">
         <div class="finished-header"><span>✅</span><h2>${isToday(currentDate) ? "Finished Today" : "Results"}</h2></div>
-        ${renderLeagueGroups(groupByLeague(finishedEvents), ({ event, slug }) => matchCard(event, slug, false))}
+        ${renderLeagueGroups(groupByLeague(finishedEvents), ({ event, slug, leagueName }) => matchCard(event, slug, false, leagueName))}
       </section>`;
 
     wrap.innerHTML = liveHtml + upcomingHtml + finishedHtml;

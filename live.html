@@ -370,8 +370,11 @@ function matchCard(event, slug, isLive, leagueName) {
   const home = comp.competitors.find((c) => c.homeAway === "home");
   const away = comp.competitors.find((c) => c.homeAway === "away");
   const minute = comp.status.displayClock || "";
+  // Some clocks are already text (e.g. "HT"), not a number — only append the
+  // minute-mark apostrophe when displayClock is actually numeric.
+  const minuteText = /^\d+(\+\d+)?$/.test(minute) ? `${minute}'` : minute;
   const statusBadge = isLive
-    ? `<span class="live-minute">🔴 ${minute}</span>`
+    ? `<span class="live-minute">🔴 ${minuteText}</span>`
     : `<span style="color:var(--text-dim); font-weight:700;">FT</span>`;
 
   const params = new URLSearchParams({
@@ -380,7 +383,8 @@ function matchCard(event, slug, isLive, leagueName) {
     away: away.team.shortDisplayName || away.team.displayName,
     homeLogo: home.team.logo || "", awayLogo: away.team.logo || "",
     homeScore: home.score, awayScore: away.score,
-    status: isLive ? `${minute}'` : "FT",
+    status: isLive ? minuteText : "FT",
+    state: isLive ? "live" : "finished",
   });
   const href = `match.html?${params.toString()}`;
 
@@ -410,7 +414,7 @@ function soonCard(event, kickoffMs, now, slug, leagueName) {
     home: home.team.shortDisplayName || home.team.displayName,
     away: away.team.shortDisplayName || away.team.displayName,
     homeLogo: home.team.logo || "", awayLogo: away.team.logo || "",
-    homeScore: "-", awayScore: "-", status: "Upcoming",
+    homeScore: "-", awayScore: "-", status: "Upcoming", state: "upcoming",
   });
   const href = `match.html?${linkParams.toString()}`;
 

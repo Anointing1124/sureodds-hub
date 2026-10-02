@@ -223,6 +223,7 @@ const AWAY_LOGO = params.get("awayLogo") || "";
 const HOME_SCORE = params.get("homeScore") || "-";
 const AWAY_SCORE = params.get("awayScore") || "-";
 const STATUS = params.get("status") || "";
+const IS_PENS = params.get("pens") === "1";
 const STATE = params.get("state") || ""; // "live" | "finished" | "upcoming" — set explicitly by the linking page, never guessed from STATUS text
 const IS_LIVE = STATE === "live";
 const IS_FINISHED = STATE === "finished";
@@ -237,7 +238,7 @@ function renderScoreHeader() {
         <div class="score-mid">${esc(HOME_SCORE)} - ${esc(AWAY_SCORE)}</div>
         <div class="score-team"><img src="${esc(AWAY_LOGO)}" alt="" onerror="this.style.display='none'"><span>${esc(AWAY_NAME)}</span></div>
       </div>
-      <div class="score-status ${IS_LIVE ? "live" : ""}">${IS_LIVE ? "🔴 " + esc(STATUS) : IS_FINISHED ? "Full Time" : esc(STATUS)}</div>
+      <div class="score-status ${IS_LIVE ? "live" : ""}">${IS_LIVE ? "🔴 " + esc(STATUS) : IS_FINISHED ? "Full Time" + (IS_PENS ? " (won on penalties)" : "") : esc(STATUS)}</div>
       ${IS_FINISHED ? `<button class="share-result-btn" data-home="${esc(HOME_NAME)}" data-away="${esc(AWAY_NAME)}" data-hs="${esc(HOME_SCORE)}" data-as="${esc(AWAY_SCORE)}" onclick="shareResult(this.dataset.home,this.dataset.away,this.dataset.hs,this.dataset.as)">📤 Share this result</button>` : ""}
     </div>`;
 }

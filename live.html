@@ -125,6 +125,32 @@
   .myteams-header{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
   .myteams-header h2{font-size:1.05rem; color:var(--gold);}
 
+  .status-filter-row{display:flex; align-items:center; gap:8px; margin:12px 0 4px;}
+  .status-filter{display:flex; gap:6px; overflow-x:auto; flex:1; scrollbar-width:none;}
+  .status-filter::-webkit-scrollbar{display:none;}
+  .status-filter-btn{
+    flex:0 0 auto; background:var(--bg-card); border:1px solid var(--line); color:var(--text-dim);
+    padding:7px 13px; border-radius:20px; font-size:0.82rem; font-weight:500; cursor:pointer; font-family:inherit; white-space:nowrap;
+  }
+  .status-filter-btn.active{background:var(--gold); color:#241900; border-color:var(--gold); font-weight:600;}
+  .refresh-now-btn{
+    flex:0 0 auto; background:var(--bg-card); border:1px solid var(--line); color:var(--text);
+    width:34px; height:34px; border-radius:50%; font-size:0.95rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; padding:0;
+  }
+  .refresh-now-btn:active{transform:scale(0.9);}
+  .refresh-now-btn.spinning{animation:spin 0.6s linear;}
+  @keyframes spin{from{transform:rotate(0deg);} to{transform:rotate(360deg);}}
+
+  .postponed-card{
+    background:var(--bg-card); border:1px solid var(--line); border-radius:10px;
+    padding:10px 16px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;
+    opacity:0.75; font-size:0.85rem;
+  }
+  .postponed-tag{font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:20px; background:#2A2A18; color:#D8C87A;}
+  [data-theme="light"] .postponed-tag{background:#FBF3D0; color:#8A7222;}
+  .pens-tag{font-size:0.68rem; color:var(--text-dim); margin-left:4px;}
+
   .date-nav{display:flex; align-items:center; justify-content:space-between; margin:18px 0 4px; gap:10px;}
   .date-nav-btn{
     background:var(--bg-card); border:1px solid var(--line); color:var(--text);
@@ -171,6 +197,16 @@
     <button class="date-nav-btn" onclick="changeDate(-1)">‹ Prev</button>
     <span class="date-nav-label" id="date-label">Today</span>
     <button class="date-nav-btn" onclick="changeDate(1)">Next ›</button>
+  </div>
+
+  <div class="status-filter-row">
+    <div class="status-filter" id="status-filter">
+      <button class="status-filter-btn active" data-filter="all" onclick="setStatusFilter('all', this)">All</button>
+      <button class="status-filter-btn" data-filter="live" onclick="setStatusFilter('live', this)">🔴 Live</button>
+      <button class="status-filter-btn" data-filter="upcoming" onclick="setStatusFilter('upcoming', this)">📅 Upcoming</button>
+      <button class="status-filter-btn" data-filter="finished" onclick="setStatusFilter('finished', this)">✅ Finished</button>
+    </div>
+    <button class="refresh-now-btn" id="refresh-now-btn" onclick="manualRefresh()" title="Refresh now">🔄</button>
   </div>
 
   <div id="myteams-wrap"></div>
@@ -231,6 +267,30 @@ function teamStar(team) {
 }
 
 // ============ Search filter — client-side, filters already-rendered cards ============
+// ============ Quick status filter (All / Live / Upcoming / Finished) ============
+let currentStatusFilter = "all";
+function setStatusFilter(filter, btnEl) {
+  currentStatusFilter = filter;
+  document.querySelectorAll("#status-filter .status-filter-btn").forEach((b) => b.classList.toggle("active", b === btnEl));
+  applyStatusFilter();
+}
+function applyStatusFilter() {
+  document.querySelectorAll("#live-wrap > section[data-status-section]").forEach((section) => {
+    section.style.display = currentStatusFilter === "all" || section.dataset.statusSection === currentStatusFilter ? "" : "none";
+  });
+}
+
+// ============ Manual refresh ============
+function manualRefresh() {
+  const btn = document.getElementById("refresh-now-btn");
+  btn.classList.add("spinning");
+  setTimeout(() => btn.classList.remove("spinning"), 600);
+  loadLiveScores();
+  // Reset the auto-refresh clock so it doesn't fire again seconds later
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+  if (isToday(currentDate)) refreshTimer = setInterval(loadLiveScores, 45000);
+}
+
 function applySearch() {
   const q = document.getElementById("search-box").value.trim().toLowerCase();
   const cards = document.querySelectorAll("#live-wrap .live-card, #live-wrap .soon-card, #live-wrap .league-group-header");
@@ -324,6 +384,10 @@ function changeDate(deltaDays) {
 
 const extraStatsCache = {}; // eventId -> { offsides: {h,a}, saves: {h,a} } or null if unavailable
 
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
 function statBar(homeVal, awayVal, label) {
   const h = parseFloat(homeVal) || 0;
   const a = parseFloat(awayVal) || 0;
@@ -373,9 +437,14 @@ function matchCard(event, slug, isLive, leagueName) {
   // Some clocks are already text (e.g. "HT"), not a number — only append the
   // minute-mark apostrophe when displayClock is actually numeric.
   const minuteText = /^\d+(\+\d+)?$/.test(minute) ? `${minute}'` : minute;
+  // ESPN already writes a clean human-readable note for shootouts (e.g.
+  // "Final/Pens") in the status detail — show that rather than guessing at
+  // a separate penalty-score field.
+  const statusDetail = (comp.status.type.detail || comp.status.type.shortDetail || "");
+  const isPens = /pen/i.test(statusDetail);
   const statusBadge = isLive
     ? `<span class="live-minute">🔴 ${minuteText}</span>`
-    : `<span style="color:var(--text-dim); font-weight:700;">FT</span>`;
+    : `<span style="color:var(--text-dim); font-weight:700;">FT${isPens ? ` <span class="pens-tag">(Pens)</span>` : ""}</span>`;
 
   const params = new URLSearchParams({
     event: event.id, slug, league: leagueName || "",
@@ -385,6 +454,7 @@ function matchCard(event, slug, isLive, leagueName) {
     homeScore: home.score, awayScore: away.score,
     status: isLive ? minuteText : "FT",
     state: isLive ? "live" : "finished",
+    pens: isPens ? "1" : "",
   });
   const href = `match.html?${params.toString()}`;
 
@@ -498,6 +568,7 @@ async function loadLiveScores() {
     let liveEvents = [];
     let upcomingEvents = [];
     let finishedEvents = [];
+    let postponedEvents = [];
     const now = Date.now();
 
     results.forEach((r) => {
@@ -507,8 +578,21 @@ async function loadLiveScores() {
         data.events.forEach((e) => {
           const comp = e.competitions && e.competitions[0];
           if (!comp || !comp.status || !comp.status.type) return;
-          const state = comp.status.type.state;
+          const type = comp.status.type;
+          const state = type.state;
           const kickoffMs = new Date(e.date).getTime();
+
+          // ESPN flags postponed/cancelled matches via type.name, not a
+          // distinct state — without this check they'd land in "Finished"
+          // with a misleading 0-0 score instead of being labeled correctly.
+          const typeName = (type.name || "").toUpperCase();
+          const isPostponed = typeName.includes("POSTPONED");
+          const isCancelled = typeName.includes("CANCEL");
+          if (isPostponed || isCancelled) {
+            postponedEvents.push({ event: e, leagueName, kickoffMs, label: isPostponed ? "Postponed" : "Cancelled" });
+            return;
+          }
+
           if (state === "in") {
             liveEvents.push({ event: e, leagueName, slug });
           } else if (state === "pre") {
@@ -520,6 +604,8 @@ async function loadLiveScores() {
       }
     });
 
+    postponedEvents.sort((a, b) => b.kickoffMs - a.kickoffMs);
+
     // Within each league group, order chronologically; league group order
     // itself follows LIVE_LEAGUES priority via groupByLeague.
     upcomingEvents.sort((a, b) => a.kickoffMs - b.kickoffMs);
@@ -530,7 +616,7 @@ async function loadLiveScores() {
 
     renderMyTeams(liveEvents, upcomingEvents, finishedEvents, now);
 
-    if (liveEvents.length === 0 && upcomingEvents.length === 0 && finishedEvents.length === 0) {
+    if (liveEvents.length === 0 && upcomingEvents.length === 0 && finishedEvents.length === 0 && postponedEvents.length === 0) {
       wrap.innerHTML = `<div class="empty">No matches found for this date in the leagues we track.</div>`;
       return;
     }
@@ -547,25 +633,41 @@ async function loadLiveScores() {
     }
 
     const liveHtml = liveEvents.length === 0 ? "" : `
-      <section class="live">
+      <section class="live" data-status-section="live">
         <div class="live-header"><span class="live-dot"></span><h2>Live Now</h2></div>
         ${renderLeagueGroups(groupByLeague(liveEvents), ({ event, slug, leagueName }) => matchCard(event, slug, true, leagueName))}
       </section>`;
 
     const upcomingHtml = upcomingEvents.length === 0 ? "" : `
-      <section class="soon">
+      <section class="soon" data-status-section="upcoming">
         <div class="soon-header"><span>📅</span><h2>${isToday(currentDate) ? "Upcoming Today" : "Fixtures"}</h2></div>
         ${renderLeagueGroups(groupByLeague(upcomingEvents), ({ event, kickoffMs, slug, leagueName }) => soonCard(event, kickoffMs, now, slug, leagueName))}
       </section>`;
 
     const finishedHtml = finishedEvents.length === 0 ? "" : `
-      <section class="finished">
+      <section class="finished" data-status-section="finished">
         <div class="finished-header"><span>✅</span><h2>${isToday(currentDate) ? "Finished Today" : "Results"}</h2></div>
         ${renderLeagueGroups(groupByLeague(finishedEvents), ({ event, slug, leagueName }) => matchCard(event, slug, false, leagueName))}
       </section>`;
 
-    wrap.innerHTML = liveHtml + upcomingHtml + finishedHtml;
+    const postponedHtml = postponedEvents.length === 0 ? "" : `
+      <section class="postponed" data-status-section="finished">
+        <div class="finished-header"><span>⏸</span><h2>Postponed &amp; Cancelled</h2></div>
+        ${postponedEvents.map(({ event, leagueName, label }) => {
+          const comp = event.competitions[0];
+          const home = comp.competitors.find((c) => c.homeAway === "home");
+          const away = comp.competitors.find((c) => c.homeAway === "away");
+          return `
+            <div class="postponed-card">
+              <span>${esc(home.team.shortDisplayName || home.team.displayName)} vs ${esc(away.team.shortDisplayName || away.team.displayName)} <span style="color:var(--text-dim); font-size:0.75rem;">(${esc(leagueName)})</span></span>
+              <span class="postponed-tag">${label}</span>
+            </div>`;
+        }).join("")}
+      </section>`;
+
+    wrap.innerHTML = liveHtml + upcomingHtml + finishedHtml + postponedHtml;
     applySearch();
+    applyStatusFilter();
   } catch (e) {
     wrap.innerHTML = `<div class="empty">Couldn't load live games right now. Check back shortly.</div>`;
   }

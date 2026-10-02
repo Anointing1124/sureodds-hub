@@ -1,5 +1,19 @@
 [
   {
+    "id": "muqxgk94",
+    "date": "2026-10-02",
+    "sport": "Football",
+    "league": "UEFA National League",
+    "category": "2",
+    "match": "Kazakhstan vs Moldova",
+    "pick": "Away Shots on Target Over 3.5",
+    "odds": "2.11",
+    "confidence": "medium",
+    "bookingCode": "Y475E2",
+    "kickoff": "2026-10-02T15:00",
+    "status": "pending"
+  },
+  {
     "id": "muosi6q1",
     "date": "2026-10-01",
     "sport": "Football",

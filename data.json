@@ -1,5 +1,19 @@
 [
   {
+    "id": "mur4rt3o",
+    "date": "2026-10-02",
+    "sport": "Football",
+    "league": "UEFA National League",
+    "category": "1.8",
+    "match": "Cyprus vs Armenia",
+    "pick": "Away Team Shots on Target Over 3.5",
+    "odds": "1.81",
+    "confidence": "medium",
+    "bookingCode": "KYJRPY",
+    "kickoff": "2026-10-02T17:00",
+    "status": "pending"
+  },
+  {
     "id": "mur0u2c4",
     "date": "2026-10-02",
     "sport": "Football",

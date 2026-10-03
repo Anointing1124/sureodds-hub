@@ -57,10 +57,12 @@
   section.live{padding:20px 0 4px;}
   .live-header{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
   .league-group-header{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
     color:var(--gold); font-family:'Oswald',sans-serif; font-size:0.8rem; font-weight:600;
     letter-spacing:0.3px; margin:18px 0 8px; padding-bottom:6px; border-bottom:1px solid var(--line);
   }
   .league-group-header:first-of-type{margin-top:0;}
+  .standings-link{color:var(--text-dim); font-size:0.72rem; font-weight:500; text-decoration:none; white-space:nowrap;}
   .live-header h2{font-size:1.05rem;}
   .live-dot{width:8px; height:8px; border-radius:50%; background:var(--red); animation:pulse 1.2s ease-in-out infinite;}
   .live-card{
@@ -178,6 +180,7 @@
       <span class="mark">SureOdds</span><span class="sub">HUB</span>
     </a>
     <div style="display:flex; align-items:center; gap:12px;">
+      <a class="back-link" href="scorers.html">Scorers</a>
       <a class="back-link" href="index.html">&larr; Back to tips</a>
       <button class="theme-toggle-btn" id="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light/dark theme">🌙</button>
     </div>
@@ -331,6 +334,20 @@ const LEAGUE_NAME_MAP = {
   "fifa.worldq.uefa": "FIFA World Cup Qualifying - UEFA", "fifa.worldq.concacaf": "FIFA World Cup Qualifying - Concacaf",
   "fifa.worldq.afc": "FIFA World Cup Qualifying - AFC", "fifa.worldq.caf": "FIFA World Cup Qualifying - CAF",
   "fifa.worldq.conmebol": "FIFA World Cup Qualifying - CONMEBOL",
+};
+
+const LEAGUE_FLAG_MAP = {
+  "eng.1": "🏴󠁧󠁢󠁥󠁮󠁧󠁿", "eng.2": "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+  "esp.1": "🇪🇸", "ita.1": "🇮🇹", "ger.1": "🇩🇪", "fra.1": "🇫🇷",
+  "ned.1": "🇳🇱", "por.1": "🇵🇹", "sco.1": "🏴󠁧󠁢󠁳󠁣󠁴󠁿", "tur.1": "🇹🇷",
+  "usa.1": "🇺🇸", "mex.1": "🇲🇽", "arg.1": "🇦🇷", "bra.1": "🇧🇷", "bra.2": "🇧🇷",
+  "chi.1": "🇨🇱", "col.1": "🇨🇴", "par.1": "🇵🇾", "per.1": "🇵🇪",
+  "uru.1": "🇺🇾", "bol.1": "🇧🇴", "ecu.1": "🇪🇨", "ven.1": "🇻🇪",
+  "uefa.champions": "🏆", "uefa.europa": "🏆", "uefa.europa.conf": "🏆",
+  "conmebol.libertadores": "🏆", "conmebol.sudamericana": "🏆", "conmebol.recopa": "🏆",
+  "uefa.nations": "🌍", "caf.nations": "🌍",
+  "fifa.worldq.uefa": "🌍", "fifa.worldq.concacaf": "🌍", "fifa.worldq.afc": "🌍",
+  "fifa.worldq.caf": "🌍", "fifa.worldq.conmebol": "🌍",
 };
 
 const LIVE_LEAGUES = [
@@ -539,7 +556,7 @@ function groupByLeague(events) {
   events.forEach((item) => {
     if (index[item.leagueName] === undefined) {
       index[item.leagueName] = groups.length;
-      groups.push({ leagueName: item.leagueName, items: [] });
+      groups.push({ leagueName: item.leagueName, slug: item.slug, items: [] });
     }
     groups[index[item.leagueName]].items.push(item);
   });
@@ -574,7 +591,9 @@ async function loadLiveScores() {
     results.forEach((r) => {
       if (r.status === "fulfilled" && r.value && r.value.data && Array.isArray(r.value.data.events)) {
         const { slug, data } = r.value;
-        const leagueName = (data.leagues && data.leagues[0] && (data.leagues[0].name || data.leagues[0].abbreviation)) || slug;
+        const rawLeagueName = (data.leagues && data.leagues[0] && (data.leagues[0].name || data.leagues[0].abbreviation)) || slug;
+        const flag = LEAGUE_FLAG_MAP[slug] || "";
+        const leagueName = flag ? `${flag} ${rawLeagueName}` : rawLeagueName;
         data.events.forEach((e) => {
           const comp = e.competitions && e.competitions[0];
           if (!comp || !comp.status || !comp.status.type) return;
@@ -625,8 +644,11 @@ async function loadLiveScores() {
       const favs = getFavLeagues();
       return groups.map((g) => `
         <div class="league-group-header">
-          <button class="star-btn ${favs[g.leagueName] ? "active" : ""}" onclick="toggleFavLeague('${g.leagueName.replace(/'/g, "\\'")}', event)" title="Follow this league">${favs[g.leagueName] ? "★" : "☆"}</button>
-          ${g.leagueName}
+          <span>
+            <button class="star-btn ${favs[g.leagueName] ? "active" : ""}" onclick="toggleFavLeague('${g.leagueName.replace(/'/g, "\\'")}', event)" title="Follow this league">${favs[g.leagueName] ? "★" : "☆"}</button>
+            ${g.leagueName}
+          </span>
+          <a href="standings.html?slug=${encodeURIComponent(g.slug)}&league=${encodeURIComponent(g.leagueName)}" class="standings-link">Table →</a>
         </div>
         ${g.items.map(renderItem).join("")}
       `).join("");

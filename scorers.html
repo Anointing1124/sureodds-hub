@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+  try { if (localStorage.getItem('sureodds_theme') === 'light') document.documentElement.setAttribute('data-theme','light'); } catch(e){}
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Top Scorers — SureOdds Hub</title>
+<meta name="description" content="Top goal scorers by league.">
+<meta name="theme-color" content="#0E1B15">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230E1B15' stroke='%23E8B94B' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='%23E8B94B' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='5' fill='%23E8B94B'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0E1B15; --bg-elev:#152B21; --bg-card:#183326; --line:#254435;
+    --text:#F2F0E6; --text-dim:#9FB3A8;
+    --gold:#E8B94B; --green:#2FA972; --red:#E2574C;
+  }
+  :root[data-theme="light"]{
+    --bg:#FAF8F2; --bg-elev:#FFFFFF; --bg-card:#FFFFFF; --line:#E4E0D3;
+    --text:#16261C; --text-dim:#66756B;
+    --gold:#B8862A; --green:#1E7A4C; --red:#C0392B;
+  }
+  [data-theme="light"] header.top{background:rgba(250,248,242,0.92);}
+  [data-theme="light"] .scorer-row{box-shadow:none;}
+  .theme-toggle-btn{
+    background:var(--bg-card); border:1px solid var(--line); color:var(--text);
+    width:32px; height:32px; border-radius:50%; font-size:0.9rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; padding:0; flex:0 0 auto;
+  }
+  .theme-toggle-btn:active{transform:scale(0.92);}
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--text);}
+  body{font-family:'Inter',system-ui,sans-serif; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);}
+  h1,h2{font-family:'Oswald',sans-serif; font-weight:600; margin:0;}
+  a{color:inherit;}
+  .wrap{max-width:760px; margin:0 auto; padding:0 18px;}
+
+  header.top{position:sticky; top:0; z-index:10; background:rgba(14,27,21,0.92); backdrop-filter:blur(6px); border-bottom:1px solid var(--line); padding:14px 0;}
+  header.top .wrap{display:flex; align-items:center; justify-content:space-between;}
+  .brand{display:flex; align-items:center; gap:8px;}
+  .brand .mark{color:var(--gold); font-family:'Oswald',sans-serif; font-weight:700; font-size:1.3rem;}
+  .brand .sub{color:var(--text-dim); font-size:0.78rem;}
+  .back-link{color:var(--text-dim); font-size:0.82rem; text-decoration:none;}
+
+  .hero{padding:24px 0 6px;}
+  .hero h1{font-size:1.4rem;}
+  .hero p{color:var(--text-dim); font-size:0.85rem; margin-top:6px;}
+
+  select.league-picker{
+    width:100%; margin:16px 0; background:var(--bg-card); border:1px solid var(--line); color:var(--text);
+    padding:11px 14px; border-radius:10px; font-size:0.9rem; font-family:inherit;
+  }
+
+  .scorer-row{
+    display:flex; align-items:center; gap:12px; background:var(--bg-card); border:1px solid var(--line);
+    border-radius:10px; padding:11px 14px; margin-bottom:8px;
+  }
+  .scorer-rank{font-family:'Oswald',sans-serif; font-weight:700; color:var(--gold); width:22px; flex:0 0 auto; text-align:center;}
+  .scorer-info{flex:1; min-width:0;}
+  .scorer-name{font-weight:600; font-size:0.9rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .scorer-team{color:var(--text-dim); font-size:0.75rem; display:flex; align-items:center; gap:6px; margin-top:2px;}
+  .scorer-team img{width:16px; height:16px; object-fit:contain;}
+  .scorer-val{font-family:'Oswald',sans-serif; font-size:1.3rem; font-weight:700; color:var(--gold); flex:0 0 auto;}
+
+  .empty-note{color:var(--text-dim); font-size:0.9rem; text-align:center; padding:30px 18px; border:1px dashed var(--line); border-radius:10px; margin:20px 0 40px;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a href="index.html" class="brand" style="text-decoration:none;">
+      <svg width="26" height="26" viewBox="0 0 64 64" style="flex:0 0 auto;">
+        <circle cx="32" cy="32" r="30" fill="#0E1B15" stroke="#E8B94B" stroke-width="4"/>
+        <circle cx="32" cy="32" r="14" fill="none" stroke="#E8B94B" stroke-width="3"/>
+        <circle cx="32" cy="32" r="5" fill="#E8B94B"/>
+      </svg>
+      <span class="mark">SureOdds</span><span class="sub">HUB</span>
+    </a>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <a class="back-link" href="live.html">&larr; Back to Live</a>
+      <button class="theme-toggle-btn" id="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light/dark theme">🌙</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <section class="hero">
+    <h1>⚽ Top Scorers</h1>
+    <p>Golden boot race, by league.</p>
+  </section>
+
+  <select class="league-picker" id="league-picker" onchange="onLeagueChange(this.value)"></select>
+
+  <div id="scorers-wrap"><div class="empty-note">Loading…</div></div>
+</div>
+
+<script>
+function toggleTheme() {
+  const isLight = document.documentElement.getAttribute("data-theme") === "light";
+  if (isLight) { document.documentElement.removeAttribute("data-theme"); localStorage.setItem("sureodds_theme", "dark"); }
+  else { document.documentElement.setAttribute("data-theme", "light"); localStorage.setItem("sureodds_theme", "light"); }
+  updateThemeIcon();
+}
+function updateThemeIcon() {
+  const btn = document.getElementById("theme-toggle");
+  if (!btn) return;
+  btn.textContent = document.documentElement.getAttribute("data-theme") === "light" ? "☀️" : "🌙";
+}
+updateThemeIcon();
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function fetchWithTimeout(url, ms) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return fetch(url, { cache: "no-store", signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
+const LEAGUE_OPTIONS = [
+  { slug: "eng.1", name: "🏴󠁧󠁢󠁥󠁮󠁧󠁿 English Premier League" },
+  { slug: "esp.1", name: "🇪🇸 Spanish LALIGA" },
+  { slug: "ita.1", name: "🇮🇹 Italian Serie A" },
+  { slug: "ger.1", name: "🇩🇪 German Bundesliga" },
+  { slug: "fra.1", name: "🇫🇷 French Ligue 1" },
+  { slug: "ned.1", name: "🇳🇱 Dutch Eredivisie" },
+  { slug: "por.1", name: "🇵🇹 Portuguese Primeira Liga" },
+  { slug: "usa.1", name: "🇺🇸 MLS" },
+  { slug: "bra.1", name: "🇧🇷 Brazilian Serie A" },
+  { slug: "arg.1", name: "🇦🇷 Argentine Liga Profesional" },
+  { slug: "uefa.champions", name: "🏆 UEFA Champions League" },
+];
+
+const params = new URLSearchParams(location.search);
+let currentSlug = params.get("slug") || "eng.1";
+
+const picker = document.getElementById("league-picker");
+picker.innerHTML = LEAGUE_OPTIONS.map((l) => `<option value="${l.slug}" ${l.slug === currentSlug ? "selected" : ""}>${esc(l.name)}</option>`).join("");
+if (!LEAGUE_OPTIONS.some((l) => l.slug === currentSlug)) {
+  picker.insertAdjacentHTML("afterbegin", `<option value="${esc(currentSlug)}" selected>${esc(params.get("league") || currentSlug)}</option>`);
+}
+
+function onLeagueChange(slug) {
+  currentSlug = slug;
+  loadScorers();
+}
+
+async function resolveRef(url) {
+  try {
+    const res = await fetchWithTimeout(url, 6000);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    return null;
+  }
+}
+
+async function loadScorers() {
+  const wrap = document.getElementById("scorers-wrap");
+  wrap.innerHTML = `<div class="empty-note">Loading…</div>`;
+  try {
+    const res = await fetchWithTimeout(`https://sports.core.api.espn.com/v2/sports/soccer/leagues/${currentSlug}/leaders`, 8000);
+    if (!res.ok) throw new Error("bad response");
+    const data = await res.json();
+    const categories = data.categories || [];
+    const goalsCategory = categories.find((c) => /goal/i.test(c.name || c.displayName || "") && !/conceded|against/i.test(c.name || c.displayName || ""));
+    const leaders = (goalsCategory && goalsCategory.leaders) || [];
+    if (leaders.length === 0) throw new Error("no leaders");
+
+    const top = leaders.slice(0, 15);
+
+    // Athlete/team info may be inline or only a $ref link — resolve any $ref-only
+    // entries (capped to what we're actually displaying) rather than guess.
+    const resolved = await Promise.all(top.map(async (l) => {
+      let athleteName = (l.athlete && (l.athlete.displayName || l.athlete.shortName)) || null;
+      let teamName = (l.team && (l.team.displayName || l.team.shortDisplayName)) || null;
+      let teamLogo = (l.team && l.team.logo) || null;
+
+      if (!athleteName && l.athlete && l.athlete.$ref) {
+        const a = await resolveRef(l.athlete.$ref);
+        if (a) athleteName = a.displayName || a.shortName || null;
+      }
+      if (!teamName && l.team && l.team.$ref) {
+        const t = await resolveRef(l.team.$ref);
+        if (t) { teamName = t.displayName || t.shortDisplayName || null; teamLogo = (t.logos && t.logos[0] && t.logos[0].href) || null; }
+      }
+      return {
+        name: athleteName || "Unknown player",
+        team: teamName || "",
+        logo: teamLogo || "",
+        value: l.displayValue || l.value || "-",
+      };
+    }));
+
+    wrap.innerHTML = resolved.map((r, i) => `
+      <div class="scorer-row">
+        <div class="scorer-rank">${i + 1}</div>
+        <div class="scorer-info">
+          <div class="scorer-name">${esc(r.name)}</div>
+          ${r.team ? `<div class="scorer-team">${r.logo ? `<img src="${esc(r.logo)}" alt="" onerror="this.style.display='none'">` : ""}${esc(r.team)}</div>` : ""}
+        </div>
+        <div class="scorer-val">${esc(r.value)}</div>
+      </div>`).join("");
+  } catch (e) {
+    wrap.innerHTML = `<div class="empty-note">Top scorers aren't available for this league right now.</div>`;
+  }
+}
+loadScorers();
+</script>
+</body>
+</html>

@@ -135,6 +135,7 @@
   <div id="timeline-wrap"></div>
   <div id="stats-wrap"></div>
   <div id="lineups-wrap"></div>
+  <div id="h2h-wrap"></div>
 
   <footer>
     <p>Live data via ESPN's public scoreboard and match-report feeds. Provided for reference — always confirm with your bookie before placing a bet.</p>
@@ -406,6 +407,33 @@ async function loadMatchDetails() {
       : `<div class="section-card"><h2>Lineups &amp; Formations</h2><div class="empty-note">${IS_LIVE || IS_FINISHED ? "Lineups aren't available for this match." : "Lineups are usually published shortly before kickoff — check back closer to the match."}</div></div>`;
   } else {
     lineupsWrap.innerHTML = `<div class="section-card"><h2>Lineups &amp; Formations</h2><div class="empty-note">${IS_LIVE || IS_FINISHED ? "Lineups aren't available for this match." : "Lineups are usually published shortly before kickoff — check back closer to the match."}</div></div>`;
+  }
+
+  // ---------- Head-to-head (from the same summary response — no extra request) ----------
+  const h2hWrap = document.getElementById("h2h-wrap");
+  const series = summary && Array.isArray(summary.seasonseries) ? summary.seasonseries : null;
+  const h2hEvents = series && series[0] && Array.isArray(series[0].events) ? series[0].events : null;
+
+  if (h2hEvents && h2hEvents.length > 0) {
+    const rows = h2hEvents.slice(0, 5).map((ev) => {
+      const comp = ev.competitions && ev.competitions[0];
+      if (!comp) return null;
+      const h = comp.competitors.find((c) => c.homeAway === "home");
+      const a = comp.competitors.find((c) => c.homeAway === "away");
+      if (!h || !a) return null;
+      const date = ev.date ? new Date(ev.date).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";
+      return `
+        <div class="timeline-item">
+          <span class="tmin" style="width:90px;">${esc(date)}</span>
+          <span>${esc(h.team && (h.team.shortDisplayName || h.team.displayName))} ${esc(h.score)} - ${esc(a.score)} ${esc(a.team && (a.team.shortDisplayName || a.team.displayName))}</span>
+        </div>`;
+    }).filter(Boolean);
+
+    h2hWrap.innerHTML = rows.length
+      ? `<div class="section-card"><h2>Head-to-Head</h2>${rows.join("")}</div>`
+      : "";
+  } else {
+    h2hWrap.innerHTML = "";
   }
 }
 </script>

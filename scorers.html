@@ -165,10 +165,28 @@ async function loadScorers() {
   const wrap = document.getElementById("scorers-wrap");
   wrap.innerHTML = `<div class="empty-note">Loading…</div>`;
   try {
-    const res = await fetchWithTimeout(`https://sports.core.api.espn.com/v2/sports/soccer/leagues/${currentSlug}/leaders`, 8000);
-    if (!res.ok) throw new Error("bad response");
-    const data = await res.json();
-    const categories = data.categories || [];
+    // Try the season-specific path first — this is the pattern ESPN's own
+    // site actually uses and is confirmed working elsewhere in their API
+    // family; the bare /leaders path (tried second) sometimes returns an
+    // empty/different shape.
+    const year = new Date().getFullYear();
+    const candidates = [
+      `https://sports.core.api.espn.com/v2/sports/soccer/leagues/${currentSlug}/seasons/${year}/types/2/leaders?lang=en&region=us`,
+      `https://sports.core.api.espn.com/v2/sports/soccer/leagues/${currentSlug}/seasons/${year}/leaders?lang=en&region=us`,
+      `https://sports.core.api.espn.com/v2/sports/soccer/leagues/${currentSlug}/leaders?lang=en&region=us`,
+    ];
+    let categories = [];
+    for (const url of candidates) {
+      try {
+        const res = await fetchWithTimeout(url, 8000);
+        if (!res.ok) continue;
+        const data = await res.json();
+        if (Array.isArray(data.categories) && data.categories.length > 0) {
+          categories = data.categories;
+          break;
+        }
+      } catch (e) { /* try next candidate */ }
+    }
     const goalsCategory = categories.find((c) => /goal/i.test(c.name || c.displayName || "") && !/conceded|against/i.test(c.name || c.displayName || ""));
     const leaders = (goalsCategory && goalsCategory.leaders) || [];
     if (leaders.length === 0) throw new Error("no leaders");

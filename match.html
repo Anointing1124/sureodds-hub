@@ -57,6 +57,7 @@
   .score-team{flex:1; display:flex; flex-direction:column; align-items:center; gap:8px; min-width:0;}
   .score-team img{width:44px; height:44px; object-fit:contain;}
   .score-team span{font-size:0.92rem; font-weight:600; text-align:center;}
+  .scorer-list{color:var(--text-dim); font-size:0.72rem; font-weight:400; text-align:center; line-height:1.5;}
   .score-mid{font-family:'Oswald',sans-serif; font-size:2.2rem; font-weight:700; color:var(--gold); flex:0 0 auto;}
   .score-status{margin-top:10px; font-size:0.8rem; color:var(--text-dim);}
   .score-status.live{color:var(--red); font-weight:700;}
@@ -235,9 +236,9 @@ function renderScoreHeader() {
     <div class="score-card">
       ${LEAGUE ? `<div class="score-league">${esc(LEAGUE)}</div>` : ""}
       <div class="score-teams">
-        <div class="score-team"><img src="${esc(HOME_LOGO)}" alt="" onerror="this.style.display='none'"><span>${esc(HOME_NAME)}</span></div>
+        <div class="score-team"><img src="${esc(HOME_LOGO)}" alt="" onerror="this.style.display='none'"><span>${esc(HOME_NAME)}</span><div class="scorer-list" id="home-scorers"></div></div>
         <div class="score-mid">${esc(HOME_SCORE)} - ${esc(AWAY_SCORE)}</div>
-        <div class="score-team"><img src="${esc(AWAY_LOGO)}" alt="" onerror="this.style.display='none'"><span>${esc(AWAY_NAME)}</span></div>
+        <div class="score-team"><img src="${esc(AWAY_LOGO)}" alt="" onerror="this.style.display='none'"><span>${esc(AWAY_NAME)}</span><div class="scorer-list" id="away-scorers"></div></div>
       </div>
       <div class="score-status ${IS_LIVE ? "live" : ""}">${IS_LIVE ? "🔴 " + esc(STATUS) : IS_FINISHED ? "Full Time" + (IS_PENS ? " (won on penalties)" : "") : esc(STATUS)}</div>
       ${IS_FINISHED ? `<button class="share-result-btn" data-home="${esc(HOME_NAME)}" data-away="${esc(AWAY_NAME)}" data-hs="${esc(HOME_SCORE)}" data-as="${esc(AWAY_SCORE)}" onclick="shareResult(this.dataset.home,this.dataset.away,this.dataset.hs,this.dataset.as)">📤 Share this result</button>` : ""}
@@ -381,6 +382,34 @@ async function loadMatchDetails() {
       `).join("")}</div>`
     : `<div class="section-card"><h2>Goals &amp; Cards</h2><div class="empty-note">${IS_FINISHED || IS_LIVE ? "No goals or cards recorded yet." : "Not available until the match starts."}</div></div>`;
 
+  // ---------- Scorer summary under each team name (e.g. "⚽ Kane 8', 54'") ----------
+  const headerComp = summary && summary.header && summary.header.competitions && summary.header.competitions[0];
+  const headerCompetitors = headerComp && headerComp.competitors;
+  const homeTeamId = headerCompetitors && String((headerCompetitors.find((c) => c.homeAway === "home") || {}).id || "");
+  const awayTeamId = headerCompetitors && String((headerCompetitors.find((c) => c.homeAway === "away") || {}).id || "");
+
+  if (homeTeamId && awayTeamId) {
+    const scorerNameFrom = (desc) => {
+      const m = desc.match(/\d+,\s*[\w\s]+\s+\d+\.\s*([^(]+)\(/);
+      return m ? m[1].trim() : null;
+    };
+    const byTeam = { [homeTeamId]: {}, [awayTeamId]: {} };
+    timeline.filter((t) => t.icon === "⚽").forEach((t) => {
+      const name = scorerNameFrom(t.desc);
+      if (!name || !byTeam[t.teamId]) return;
+      const key = name.split(" ").slice(-1)[0]; // last name, compact
+      byTeam[t.teamId][key] = byTeam[t.teamId][key] || [];
+      byTeam[t.teamId][key].push(t.clock.replace("'", ""));
+    });
+    const formatSide = (teamId) => Object.entries(byTeam[teamId])
+      .map(([name, mins]) => `⚽ ${esc(name)} ${mins.map((m) => m + "'").join(", ")}`)
+      .join("<br>");
+    const homeEl = document.getElementById("home-scorers");
+    const awayEl = document.getElementById("away-scorers");
+    if (homeEl) homeEl.innerHTML = formatSide(homeTeamId);
+    if (awayEl) awayEl.innerHTML = formatSide(awayTeamId);
+  }
+
   // ---------- Lineups & formations ----------
   const rosters = summary && summary.rosters;
   if (Array.isArray(rosters) && rosters.length >= 2) {
@@ -409,18 +438,29 @@ async function loadMatchDetails() {
     lineupsWrap.innerHTML = `<div class="section-card"><h2>Lineups &amp; Formations</h2><div class="empty-note">${IS_LIVE || IS_FINISHED ? "Lineups aren't available for this match." : "Lineups are usually published shortly before kickoff — check back closer to the match."}</div></div>`;
   }
 
-  // ---------- Head-to-head (from the same summary response — no extra request) ----------
+  // ---------- Head-to-head ----------
+  // ESPN's seasonseries field (bundled in the summary we already fetched) is
+  // the fast path, but it's known to be sparse — often missing for matches
+  // that aren't currently live. When it's empty, fall back to pulling the
+  // home team's own schedule and filtering for past meetings against the
+  // away team. That works regardless of whether this match is upcoming,
+  // live, or already finished, since it doesn't depend on this match's own
+  // state at all.
   const h2hWrap = document.getElementById("h2h-wrap");
-  const series = summary && Array.isArray(summary.seasonseries) ? summary.seasonseries : null;
-  const h2hEvents = series && series[0] && Array.isArray(series[0].events) ? series[0].events : null;
 
-  if (h2hEvents && h2hEvents.length > 0) {
-    const rows = h2hEvents.slice(0, 5).map((ev) => {
+  function renderH2H(rows) {
+    h2hWrap.innerHTML = rows.length
+      ? `<div class="section-card"><h2>Head-to-Head</h2>${rows.join("")}</div>`
+      : "";
+  }
+
+  function rowsFromEvents(events) {
+    return events.map((ev) => {
       const comp = ev.competitions && ev.competitions[0];
       if (!comp) return null;
       const h = comp.competitors.find((c) => c.homeAway === "home");
       const a = comp.competitors.find((c) => c.homeAway === "away");
-      if (!h || !a) return null;
+      if (!h || !a || h.score == null || a.score == null) return null;
       const date = ev.date ? new Date(ev.date).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";
       return `
         <div class="timeline-item">
@@ -428,12 +468,35 @@ async function loadMatchDetails() {
           <span>${esc(h.team && (h.team.shortDisplayName || h.team.displayName))} ${esc(h.score)} - ${esc(a.score)} ${esc(a.team && (a.team.shortDisplayName || a.team.displayName))}</span>
         </div>`;
     }).filter(Boolean);
+  }
 
-    h2hWrap.innerHTML = rows.length
-      ? `<div class="section-card"><h2>Head-to-Head</h2>${rows.join("")}</div>`
-      : "";
+  const series = summary && Array.isArray(summary.seasonseries) ? summary.seasonseries : null;
+  const seasonSeriesEvents = series && series[0] && Array.isArray(series[0].events) ? series[0].events : null;
+
+  if (seasonSeriesEvents && seasonSeriesEvents.length > 0) {
+    renderH2H(rowsFromEvents(seasonSeriesEvents).slice(0, 5));
+  } else if (homeTeamId && awayTeamId) {
+    try {
+      const res = await fetchWithTimeout(`https://site.api.espn.com/apis/site/v2/sports/soccer/${SLUG}/teams/${homeTeamId}/schedule`, 8000);
+      if (res.ok) {
+        const schedData = await res.json();
+        const allEvents = schedData.events || [];
+        const pastMeetings = allEvents.filter((ev) => {
+          if (String(ev.id) === String(EVENT_ID)) return false;
+          const comp = ev.competitions && ev.competitions[0];
+          if (!comp || !comp.status || comp.status.type.state !== "post") return false;
+          const ids = comp.competitors.map((c) => String(c.team && c.team.id));
+          return ids.includes(awayTeamId);
+        }).sort((a, b) => new Date(b.date) - new Date(a.date));
+        renderH2H(rowsFromEvents(pastMeetings).slice(0, 5));
+      } else {
+        renderH2H([]);
+      }
+    } catch (e) {
+      renderH2H([]);
+    }
   } else {
-    h2hWrap.innerHTML = "";
+    renderH2H([]);
   }
 }
 </script>

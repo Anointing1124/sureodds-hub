@@ -144,48 +144,70 @@ async function loadStandings() {
     if (!res.ok) throw new Error("bad response");
     const data = await res.json();
 
-    // Defensive: try a couple of plausible shapes for where entries live.
-    const group = (data.children && data.children[0] && data.children[0].standings) || data.standings;
-    const entries = group && group.entries;
-    if (!Array.isArray(entries) || entries.length === 0) throw new Error("no entries");
+    // A single-table league (EPL, La Liga, etc.) has one group under children[0].
+    // A competition with divisions (Nations League's A/B/C/D, Champions League
+    // groups) has MULTIPLE children, each its own mini-table — reading only
+    // children[0] silently dropped every group except the first.
+    let groups = [];
+    if (Array.isArray(data.children) && data.children.length > 0) {
+      groups = data.children
+        .map((child) => ({
+          name: child.name || child.abbreviation || "",
+          entries: child.standings && child.standings.entries,
+        }))
+        .filter((g) => Array.isArray(g.entries) && g.entries.length > 0);
+    } else if (data.standings && Array.isArray(data.standings.entries)) {
+      groups = [{ name: "", entries: data.standings.entries }];
+    }
 
-    const rows = entries.map((e) => {
-      const team = e.team || {};
-      const stats = e.stats || [];
-      return {
-        name: team.shortDisplayName || team.displayName || team.name || "Team",
-        logo: team.logo || (team.logos && team.logos[0] && team.logos[0].href) || "",
-        rank: findStat(stats, ["rank"]) ?? "-",
-        played: findStat(stats, ["gamesplayed", "played"]) ?? "-",
-        wins: findStat(stats, ["wins"]) ?? "-",
-        draws: findStat(stats, ["ties", "draws"]) ?? "-",
-        losses: findStat(stats, ["losses"]) ?? "-",
-        gd: findStat(stats, ["pointdifferential", "goaldifferential", "differential"]) ?? "-",
-        pts: findStat(stats, ["points"]) ?? "-",
-      };
-    });
+    if (groups.length === 0) throw new Error("no entries");
 
-    wrap.innerHTML = `
-      <div class="table-wrap">
-        <table class="standings">
-          <thead><tr>
-            <th>#</th><th class="team-col">Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th>
-          </tr></thead>
-          <tbody>
-            ${rows.map((r) => `
-              <tr>
-                <td class="rank-cell">${esc(r.rank)}</td>
-                <td class="team-col"><div class="team-cell"><img src="${esc(r.logo)}" alt="" onerror="this.style.display='none'"><span>${esc(r.name)}</span></div></td>
-                <td>${esc(r.played)}</td>
-                <td>${esc(r.wins)}</td>
-                <td>${esc(r.draws)}</td>
-                <td>${esc(r.losses)}</td>
-                <td>${esc(r.gd)}</td>
-                <td class="pts-cell">${esc(r.pts)}</td>
-              </tr>`).join("")}
-          </tbody>
-        </table>
-      </div>`;
+    function buildRows(entries) {
+      return entries.map((e) => {
+        const team = e.team || {};
+        const stats = e.stats || [];
+        return {
+          name: team.shortDisplayName || team.displayName || team.name || "Team",
+          logo: team.logo || (team.logos && team.logos[0] && team.logos[0].href) || "",
+          rank: findStat(stats, ["rank"]) ?? "-",
+          played: findStat(stats, ["gamesplayed", "played"]) ?? "-",
+          wins: findStat(stats, ["wins"]) ?? "-",
+          draws: findStat(stats, ["ties", "draws"]) ?? "-",
+          losses: findStat(stats, ["losses"]) ?? "-",
+          gd: findStat(stats, ["pointdifferential", "goaldifferential", "differential"]) ?? "-",
+          pts: findStat(stats, ["points"]) ?? "-",
+        };
+      });
+    }
+
+    function tableHtml(rows) {
+      return `
+        <div class="table-wrap">
+          <table class="standings">
+            <thead><tr>
+              <th>#</th><th class="team-col">Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th>
+            </tr></thead>
+            <tbody>
+              ${rows.map((r) => `
+                <tr>
+                  <td class="rank-cell">${esc(r.rank)}</td>
+                  <td class="team-col"><div class="team-cell"><img src="${esc(r.logo)}" alt="" onerror="this.style.display='none'"><span>${esc(r.name)}</span></div></td>
+                  <td>${esc(r.played)}</td>
+                  <td>${esc(r.wins)}</td>
+                  <td>${esc(r.draws)}</td>
+                  <td>${esc(r.losses)}</td>
+                  <td>${esc(r.gd)}</td>
+                  <td class="pts-cell">${esc(r.pts)}</td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    wrap.innerHTML = groups.map((g) => `
+      ${g.name ? `<h2 style="font-size:1rem; margin:20px 0 4px;">${esc(g.name)}</h2>` : ""}
+      ${tableHtml(buildRows(g.entries))}
+    `).join("");
   } catch (e) {
     wrap.innerHTML = `<div class="empty-note">Standings aren't available for this competition right now — this is more common for cup/qualifying competitions than for regular leagues.</div>`;
   }

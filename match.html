@@ -322,12 +322,19 @@ async function loadMatchDetails() {
   timelineWrap.innerHTML = `<div class="section-card"><div class="empty-note">Loading match details…</div></div>`;
 
   const [summaryResult, playsResult] = await Promise.allSettled([
-    fetchWithTimeout(`https://site.api.espn.com/apis/site/v2/sports/soccer/${SLUG}/summary?event=${EVENT_ID}`, 8000).then((r) => r.ok ? r.json() : null),
-    fetchWithTimeout(`https://sports.core.api.espn.com/v2/sports/soccer/leagues/${SLUG}/events/${EVENT_ID}/competitions/${EVENT_ID}/plays?limit=300`, 8000).then((r) => r.ok ? r.json() : null),
+    fetchWithTimeout(`https://site.api.espn.com/apis/site/v2/sports/soccer/${SLUG}/summary?event=${EVENT_ID}`, 8000)
+      .then(async (r) => ({ ok: r.ok, httpStatus: r.status, data: r.ok ? await r.json() : null })),
+    fetchWithTimeout(`https://sports.core.api.espn.com/v2/sports/soccer/leagues/${SLUG}/events/${EVENT_ID}/competitions/${EVENT_ID}/plays?limit=300`, 8000)
+      .then(async (r) => ({ ok: r.ok, httpStatus: r.status, data: r.ok ? await r.json() : null })),
   ]);
 
-  const summary = summaryResult.status === "fulfilled" ? summaryResult.value : null;
-  const playsData = playsResult.status === "fulfilled" ? playsResult.value : null;
+  // Distinguish three real cases instead of collapsing them into one silent
+  // "nothing to show": a network/timeout failure, a non-OK HTTP response, or
+  // a genuinely successful fetch that just has no play-by-play for this match.
+  const summaryInfo = summaryResult.status === "fulfilled" ? summaryResult.value : { ok: false, httpStatus: null, data: null, networkError: true };
+  const playsInfo = playsResult.status === "fulfilled" ? playsResult.value : { ok: false, httpStatus: null, data: null, networkError: true };
+  const summary = summaryInfo.data;
+  const playsData = playsInfo.data;
 
   // ---------- Stats (possession, shots, offsides, saves) ----------
   const teams = summary && summary.boxscore && summary.boxscore.teams;
@@ -352,7 +359,12 @@ async function loadMatchDetails() {
       ? `<div class="section-card"><h2>Match Stats</h2>${statsHtml}</div>`
       : `<div class="section-card"><h2>Match Stats</h2><div class="empty-note">Stats aren't available for this match yet.</div></div>`;
   } else {
-    statsWrap.innerHTML = `<div class="section-card"><h2>Match Stats</h2><div class="empty-note">Stats aren't available for this match yet.</div></div>`;
+    const note = summaryInfo.networkError
+      ? "Couldn't load this section — connection issue. Try reopening the match."
+      : !summaryInfo.ok
+        ? "Couldn't load this section (ESPN returned an error). Try reopening the match."
+        : "Stats aren't available for this match yet.";
+    statsWrap.innerHTML = `<div class="section-card"><h2>Match Stats</h2><div class="empty-note">${esc(note)}</div></div>`;
   }
 
   // ---------- Timeline (goals + cards, with scorer/assist names from ESPN's text) ----------
@@ -376,11 +388,24 @@ async function loadMatchDetails() {
     timeline.push({ clock, icon, desc: (p.text || typeText || "").trim(), teamId });
   });
 
+  let timelineNote;
+  if (!IS_FINISHED && !IS_LIVE) {
+    timelineNote = "Not available until the match starts.";
+  } else if (playsInfo.networkError) {
+    timelineNote = "Couldn't load this section — connection issue. Try reopening the match.";
+  } else if (!playsInfo.ok) {
+    timelineNote = `Couldn't load this section (ESPN returned an error). Try reopening the match.`;
+  } else if (items.length === 0) {
+    timelineNote = "ESPN hasn't published play-by-play commentary for this match — this happens for some lower-profile fixtures even when the score and stats are available.";
+  } else {
+    timelineNote = "No goals or cards recorded.";
+  }
+
   timelineWrap.innerHTML = timeline.length
     ? `<div class="section-card"><h2>Goals &amp; Cards</h2>${timeline.map((t) => `
         <div class="timeline-item"><span class="tmin">${esc(t.clock)}</span><span>${t.icon} ${esc(t.desc)}</span></div>
       `).join("")}</div>`
-    : `<div class="section-card"><h2>Goals &amp; Cards</h2><div class="empty-note">${IS_FINISHED || IS_LIVE ? "No goals or cards recorded yet." : "Not available until the match starts."}</div></div>`;
+    : `<div class="section-card"><h2>Goals &amp; Cards</h2><div class="empty-note">${esc(timelineNote)}</div></div>`;
 
   // ---------- Scorer summary under each team name (e.g. "⚽ Kane 8', 54'") ----------
   const headerComp = summary && summary.header && summary.header.competitions && summary.header.competitions[0];
@@ -433,9 +458,16 @@ async function loadMatchDetails() {
 
     lineupsWrap.innerHTML = teamHtml
       ? `<div class="section-card"><h2>Lineups &amp; Formations</h2>${teamHtml}</div>`
-      : `<div class="section-card"><h2>Lineups &amp; Formations</h2><div class="empty-note">${IS_LIVE || IS_FINISHED ? "Lineups aren't available for this match." : "Lineups are usually published shortly before kickoff — check back closer to the match."}</div></div>`;
+      : `<div class="section-card"><h2>Lineups &amp; Formations</h2><div class="empty-note">${esc(lineupsNote())}</div></div>`;
   } else {
-    lineupsWrap.innerHTML = `<div class="section-card"><h2>Lineups &amp; Formations</h2><div class="empty-note">${IS_LIVE || IS_FINISHED ? "Lineups aren't available for this match." : "Lineups are usually published shortly before kickoff — check back closer to the match."}</div></div>`;
+    lineupsWrap.innerHTML = `<div class="section-card"><h2>Lineups &amp; Formations</h2><div class="empty-note">${esc(lineupsNote())}</div></div>`;
+  }
+
+  function lineupsNote() {
+    if (summaryInfo.networkError) return "Couldn't load this section — connection issue. Try reopening the match.";
+    if (!summaryInfo.ok) return "Couldn't load this section (ESPN returned an error). Try reopening the match.";
+    if (IS_LIVE || IS_FINISHED) return "ESPN hasn't published lineups for this match.";
+    return "Lineups are usually published shortly before kickoff — check back closer to the match.";
   }
 
   // ---------- Head-to-head ----------
@@ -495,6 +527,11 @@ async function loadMatchDetails() {
     } catch (e) {
       renderH2H([]);
     }
+  } else if (summaryInfo.networkError || !summaryInfo.ok) {
+    // Only speak up here if something actually broke — if the summary loaded
+    // fine but this match just doesn't have the expected team-ID shape, stay
+    // quiet rather than clutter the page over a feature that's genuinely N/A.
+    h2hWrap.innerHTML = `<div class="section-card"><h2>Head-to-Head</h2><div class="empty-note">Couldn't load this section — connection issue. Try reopening the match.</div></div>`;
   } else {
     renderH2H([]);
   }

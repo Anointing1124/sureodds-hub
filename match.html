@@ -6,11 +6,11 @@
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Match — SureOdds Hub</title>
+<title>Match — Anointed ODDS</title>
 <meta name="description" content="Live match detail: score, goal scorers, cards, and full lineups.">
 <meta name="theme-color" content="#0E1B15">
 <meta name="robots" content="noindex">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230E1B15' stroke='%23E8B94B' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='%23E8B94B' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='5' fill='%23E8B94B'/%3E%3C/svg%3E">
+<link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -117,12 +117,8 @@
 <header class="top">
   <div class="wrap">
     <a href="index.html" class="brand" style="text-decoration:none;">
-      <svg width="26" height="26" viewBox="0 0 64 64" style="flex:0 0 auto;">
-        <circle cx="32" cy="32" r="30" fill="#0E1B15" stroke="#E8B94B" stroke-width="4"/>
-        <circle cx="32" cy="32" r="14" fill="none" stroke="#E8B94B" stroke-width="3"/>
-        <circle cx="32" cy="32" r="5" fill="#E8B94B"/>
-      </svg>
-      <span class="mark">SureOdds</span><span class="sub">HUB</span>
+      <img src="logo.png" alt="" width="28" height="28" style="flex:0 0 auto; border-radius:50%;">
+      <span class="mark">Anointed</span><span class="sub">ODDS</span>
     </a>
     <div style="display:flex; align-items:center; gap:12px;">
       <a class="back-link" href="live.html">&larr; Back to Live</a>
@@ -188,7 +184,7 @@ async function shareResult(homeName, awayName, homeScore, awayScore) {
   ctx.textAlign = "center";
   ctx.fillStyle = "#E8B94B";
   ctx.font = "700 34px Oswald, sans-serif";
-  ctx.fillText("SUREODDS HUB — FULL TIME", W / 2, 250);
+  ctx.fillText("ANOINTED ODDS — FULL TIME", W / 2, 250);
 
   ctx.fillStyle = "#F2F0E6";
   ctx.font = "600 42px Oswald, sans-serif";
@@ -205,10 +201,10 @@ async function shareResult(homeName, awayName, homeScore, awayScore) {
   wrap(awayName, 660);
 
   ctx.font = "400 24px Inter, sans-serif"; ctx.fillStyle = "#6C8B7A";
-  ctx.fillText("Live scores & tips at SureOdds Hub", W / 2, H - 60);
+  ctx.fillText("Live scores & tips at Anointed ODDS", W / 2, H - 60);
 
   const link = document.createElement("a");
-  link.download = `sureodds-result-${homeName.replace(/\s+/g, "-").toLowerCase()}.png`;
+  link.download = `anointedodds-result-${homeName.replace(/\s+/g, "-").toLowerCase()}.png`;
   link.href = canvas.toDataURL("image/png");
   link.click();
 }
@@ -231,7 +227,7 @@ const IS_LIVE = STATE === "live";
 const IS_FINISHED = STATE === "finished";
 
 function renderScoreHeader() {
-  document.title = `${HOME_NAME} vs ${AWAY_NAME} — SureOdds Hub`;
+  document.title = `${HOME_NAME} vs ${AWAY_NAME} — Anointed ODDS`;
   document.getElementById("score-wrap").innerHTML = `
     <div class="score-card">
       ${LEAGUE ? `<div class="score-league">${esc(LEAGUE)}</div>` : ""}

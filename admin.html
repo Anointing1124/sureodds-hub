@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230E1B15' stroke='%23E8B94B' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='%23E8B94B' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='5' fill='%23E8B94B'/%3E%3C/svg%3E">
-<title>SureOdds Hub — Admin</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<title>Anointed ODDS — Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -84,7 +84,7 @@
 
   <!-- ===================== SETUP SCREEN ===================== -->
   <div id="setup-screen">
-    <h1>SureOdds Hub — Admin setup</h1>
+    <h1>Anointed ODDS — Admin setup</h1>
     <p class="sub">One-time setup. This is stored only in this browser, on this device.</p>
     <div class="card">
       <label>GitHub username (repo owner)</label>
@@ -577,7 +577,7 @@ async function shareImage(id) {
   ctx.textAlign = "center";
   ctx.fillStyle = "#E8B94B";
   ctx.font = "700 46px Oswald, sans-serif";
-  ctx.fillText("SUREODDS HUB", W / 2, 360);
+  ctx.fillText("ANOINTED ODDS", W / 2, 360);
 
   if (tip.category) {
     ctx.font = "600 30px Inter, sans-serif";
@@ -617,7 +617,7 @@ async function shareImage(id) {
   ctx.fillText("18+ · Bet responsibly", W / 2, H - 80);
 
   const link = document.createElement("a");
-  link.download = `sureodds-${(tip.match || "tip").replace(/\s+/g, "-").toLowerCase()}.png`;
+  link.download = `anointedodds-${(tip.match || "tip").replace(/\s+/g, "-").toLowerCase()}.png`;
   link.href = canvas.toDataURL("image/png");
   link.click();
 }

@@ -1,4 +1,4 @@
-const CACHE = "sureodds-v2";
+const CACHE = "anointedodds-v1";
 const ASSETS = ["./index.html", "./about.html", "./live.html", "./manifest.json"];
 
 self.addEventListener("install", (e) => {

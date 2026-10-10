@@ -1,5 +1,19 @@
 [
   {
+    "id": "mv2fodzi",
+    "date": "2026-10-10",
+    "sport": "Football",
+    "league": "Netherlands - Eredivisie",
+    "category": "1.8",
+    "match": "Fortuna Sittard vs FC Twente Enschede",
+    "pick": "Home Team Assists 1+",
+    "odds": "1.87",
+    "confidence": "high",
+    "bookingCode": "RWK085",
+    "kickoff": "2026-10-10T19:00",
+    "status": "pending"
+  },
+  {
     "id": "mv1m3z7h",
     "date": "2026-10-09",
     "sport": "Football",

@@ -1,5 +1,19 @@
 [
   {
+    "id": "mv3v5dn1",
+    "date": "2026-10-11",
+    "sport": "Football",
+    "league": "Germany - Bundesliga",
+    "category": "1.7",
+    "match": "Freiburg vs Schalke",
+    "pick": "Home win",
+    "odds": "1.76",
+    "confidence": "high",
+    "bookingCode": "SR37V5",
+    "kickoff": "2026-10-11T16:30",
+    "status": "pending"
+  },
+  {
     "id": "mv2fodzi",
     "date": "2026-10-10",
     "sport": "Football",

@@ -125,6 +125,7 @@ function findStat(stats, names) {
 
 const params = new URLSearchParams(location.search);
 const SLUG = params.get("slug");
+const SPORT = params.get("sport") === "basketball" ? "basketball" : "soccer";
 const LEAGUE_NAME = params.get("league") || "League Table";
 document.getElementById("league-title").textContent = LEAGUE_NAME;
 document.title = `${LEAGUE_NAME} Standings — Anointed ODDS`;
@@ -136,7 +137,7 @@ async function loadStandings() {
     return;
   }
   try {
-    const res = await fetchWithTimeout(`https://site.api.espn.com/apis/v2/sports/soccer/${SLUG}/standings`, 8000);
+    const res = await fetchWithTimeout(`https://site.api.espn.com/apis/v2/sports/${SPORT}/${SLUG}/standings`, 8000);
     if (!res.ok) throw new Error("bad response");
     const data = await res.json();
 

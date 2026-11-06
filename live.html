@@ -190,6 +190,11 @@
     <div class="last-updated" id="last-updated"></div>
   </section>
 
+  <div class="status-filter" id="sport-toggle" style="margin-top:16px;">
+    <button class="status-filter-btn active" onclick="setSport('football', this)">⚽ Football</button>
+    <button class="status-filter-btn" onclick="setSport('basketball', this)">🏀 Basketball</button>
+  </div>
+
   <input type="text" id="search-box" class="search-box" placeholder="🔎 Search team or league…" oninput="applySearch()">
 
   <div class="date-nav">
@@ -346,7 +351,7 @@ const LEAGUE_FLAG_MAP = {
   "fifa.worldq.caf": "🌍", "fifa.worldq.conmebol": "🌍",
 };
 
-const LIVE_LEAGUES = [
+const FOOTBALL_LEAGUES = [
   // Top European leagues
   "eng.1", "eng.2", "esp.1", "ita.1", "ger.1", "fra.1", "ned.1", "por.1", "sco.1", "tur.1",
   // Americas
@@ -358,6 +363,24 @@ const LIVE_LEAGUES = [
   "uefa.nations", "caf.nations",
   "fifa.worldq.uefa", "fifa.worldq.concacaf", "fifa.worldq.afc", "fifa.worldq.caf", "fifa.worldq.conmebol",
 ];
+
+const BASKETBALL_LEAGUES = ["nba", "wnba"];
+const BASKETBALL_FLAG_MAP = { "nba": "🏀", "wnba": "🏀" };
+
+let currentSport = "football"; // "football" | "basketball"
+
+function sportConfig() {
+  return currentSport === "basketball"
+    ? { sportPath: "basketball", leagues: BASKETBALL_LEAGUES, flagMap: BASKETBALL_FLAG_MAP }
+    : { sportPath: "soccer", leagues: FOOTBALL_LEAGUES, flagMap: LEAGUE_FLAG_MAP };
+}
+
+function setSport(sport, btnEl) {
+  currentSport = sport;
+  document.querySelectorAll("#sport-toggle .status-filter-btn").forEach((b) => b.classList.toggle("active", b === btnEl));
+  document.getElementById("search-box").value = "";
+  loadLiveScores();
+}
 
 let currentDate = new Date();
 let refreshTimer = null;
@@ -459,27 +482,38 @@ function matchCard(event, slug, isLive, leagueName) {
     ? `<span class="live-minute">🔴 ${minuteText}</span>`
     : `<span style="color:var(--text-dim); font-weight:700;">FT${isPens ? ` <span class="pens-tag">(Pens)</span>` : ""}</span>`;
 
-  const params = new URLSearchParams({
-    event: event.id, slug, league: leagueName || "",
-    home: home.team.shortDisplayName || home.team.displayName,
-    away: away.team.shortDisplayName || away.team.displayName,
-    homeLogo: home.team.logo || "", awayLogo: away.team.logo || "",
-    homeScore: home.score, awayScore: away.score,
-    status: isLive ? minuteText : "FT",
-    state: isLive ? "live" : "finished",
-    pens: isPens ? "1" : "",
-  });
-  const href = `match.html?${params.toString()}`;
+  let href, tapHint, target = "";
+  if (currentSport === "basketball") {
+    // match.html's stats/lineups/goal-timeline are built around football data,
+    // so basketball links straight to ESPN's own box score instead.
+    const summaryLink = (event.links && event.links.find((l) => l.rel.includes("summary"))) || null;
+    href = summaryLink ? summaryLink.href : "#";
+    tapHint = "View box score on ESPN →";
+    target = " ";
+  } else {
+    const params = new URLSearchParams({
+      event: event.id, slug, league: leagueName || "",
+      home: home.team.shortDisplayName || home.team.displayName,
+      away: away.team.shortDisplayName || away.team.displayName,
+      homeLogo: home.team.logo || "", awayLogo: away.team.logo || "",
+      homeScore: home.score, awayScore: away.score,
+      status: isLive ? minuteText : "FT",
+      state: isLive ? "live" : "finished",
+      pens: isPens ? "1" : "",
+    });
+    href = `match.html?${params.toString()}`;
+    tapHint = "View lineups, goals &amp; cards →";
+  }
 
   return `
-    <div class="live-card" onclick="location.href='${href}'" style="cursor:pointer;">
+    <div class="live-card" onclick="window.open('${href}', '${target ? "_blank" : "_self"}')" style="cursor:pointer;">
       <div class="live-league" style="justify-content:flex-end;">${statusBadge}</div>
       <div class="live-teams">
         <div class="live-team">${teamStar(home.team)}<img src="${home.team.logo || ""}" alt="" onerror="this.style.display='none'"><span>${home.team.shortDisplayName || home.team.displayName}</span></div>
         <div class="live-score" style="${isLive ? "" : "color:var(--text-dim);"}">${home.score} - ${away.score}</div>
         <div class="live-team" style="justify-content:flex-end; text-align:right;"><span>${away.team.shortDisplayName || away.team.displayName}</span><img src="${away.team.logo || ""}" alt="" onerror="this.style.display='none'">${teamStar(away.team)}</div>
       </div>
-      <div class="tap-hint">View lineups, goals &amp; cards →</div>
+      <div class="tap-hint">${tapHint}</div>
     </div>`;
 }
 
@@ -492,24 +526,33 @@ function soonCard(event, kickoffMs, now, slug, leagueName) {
   const countdown = mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`;
   const kickoffTime = new Date(kickoffMs).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 
-  const linkParams = new URLSearchParams({
-    event: event.id, slug, league: leagueName || "",
-    home: home.team.shortDisplayName || home.team.displayName,
-    away: away.team.shortDisplayName || away.team.displayName,
-    homeLogo: home.team.logo || "", awayLogo: away.team.logo || "",
-    homeScore: "-", awayScore: "-", status: "Upcoming", state: "upcoming",
-  });
-  const href = `match.html?${linkParams.toString()}`;
+  let href, tapHint, target = "";
+  if (currentSport === "basketball") {
+    const summaryLink = (event.links && event.links.find((l) => l.rel.includes("summary"))) || null;
+    href = summaryLink ? summaryLink.href : "#";
+    tapHint = "View on ESPN →";
+    target = " ";
+  } else {
+    const linkParams = new URLSearchParams({
+      event: event.id, slug, league: leagueName || "",
+      home: home.team.shortDisplayName || home.team.displayName,
+      away: away.team.shortDisplayName || away.team.displayName,
+      homeLogo: home.team.logo || "", awayLogo: away.team.logo || "",
+      homeScore: "-", awayScore: "-", status: "Upcoming", state: "upcoming",
+    });
+    href = `match.html?${linkParams.toString()}`;
+    tapHint = "Tap for lineups when available →";
+  }
 
   return `
-    <div class="soon-card" onclick="location.href='${href}'" style="cursor:pointer;">
+    <div class="soon-card" onclick="window.open('${href}', '${target ? "_blank" : "_self"}')" style="cursor:pointer;">
       <div class="soon-teams">
         <div class="soon-team">${teamStar(home.team)}<img src="${home.team.logo || ""}" alt="" onerror="this.style.display='none'"><span>${home.team.shortDisplayName || home.team.displayName}</span></div>
         <div class="soon-vs">vs</div>
         <div class="soon-team" style="justify-content:flex-end; text-align:right;"><span>${away.team.shortDisplayName || away.team.displayName}</span><img src="${away.team.logo || ""}" alt="" onerror="this.style.display='none'">${teamStar(away.team)}</div>
       </div>
       <div class="soon-meta"><span>${kickoffTime}</span><span class="soon-countdown">Kicks off in ${countdown}</span></div>
-      <div class="tap-hint">Tap for lineups when available →</div>
+      <div class="tap-hint">${tapHint}</div>
     </div>`;
 }
 
@@ -543,7 +586,7 @@ function renderMyTeams(liveEvents, upcomingEvents, finishedEvents, now) {
 }
 
 function groupByLeague(events) {
-  // events already arrive in LIVE_LEAGUES order (Promise.allSettled preserves
+  // events already arrive in league-list order (Promise.allSettled preserves
   // input order), so grouping by first-seen league name keeps big leagues
   // first automatically, matching the priority baked into that list.
   // Favorited leagues (starred) are then pulled to the very front.
@@ -570,9 +613,10 @@ async function loadLiveScores() {
     const m = String(currentDate.getMonth() + 1).padStart(2, "0");
     const d = String(currentDate.getDate()).padStart(2, "0");
     const todayStr = `${y}${m}${d}`;
+    const cfg = sportConfig();
     const results = await Promise.allSettled(
-      LIVE_LEAGUES.map((slug) =>
-        fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard?dates=${todayStr}`, { cache: "no-store" })
+      cfg.leagues.map((slug) =>
+        fetch(`https://site.api.espn.com/apis/site/v2/sports/${cfg.sportPath}/${slug}/scoreboard?dates=${todayStr}`, { cache: "no-store" })
           .then((r) => r.json())
           .then((data) => ({ slug, data }))
       )
@@ -588,7 +632,7 @@ async function loadLiveScores() {
       if (r.status === "fulfilled" && r.value && r.value.data && Array.isArray(r.value.data.events)) {
         const { slug, data } = r.value;
         const rawLeagueName = (data.leagues && data.leagues[0] && (data.leagues[0].name || data.leagues[0].abbreviation)) || slug;
-        const flag = LEAGUE_FLAG_MAP[slug] || "";
+        const flag = cfg.flagMap[slug] || "";
         const leagueName = flag ? `${flag} ${rawLeagueName}` : rawLeagueName;
         data.events.forEach((e) => {
           const comp = e.competitions && e.competitions[0];
@@ -622,7 +666,7 @@ async function loadLiveScores() {
     postponedEvents.sort((a, b) => b.kickoffMs - a.kickoffMs);
 
     // Within each league group, order chronologically; league group order
-    // itself follows LIVE_LEAGUES priority via groupByLeague.
+    // itself follows league-list priority via groupByLeague.
     upcomingEvents.sort((a, b) => a.kickoffMs - b.kickoffMs);
     finishedEvents.sort((a, b) => b.kickoffMs - a.kickoffMs);
 
@@ -644,7 +688,7 @@ async function loadLiveScores() {
             <button class="star-btn ${favs[g.leagueName] ? "active" : ""}" onclick="toggleFavLeague('${g.leagueName.replace(/'/g, "\\'")}', event)" title="Follow this league">${favs[g.leagueName] ? "★" : "☆"}</button>
             ${g.leagueName}
           </span>
-          <a href="standings.html?slug=${encodeURIComponent(g.slug)}&league=${encodeURIComponent(g.leagueName)}" class="standings-link">Table →</a>
+          <a href="standings.html?slug=${encodeURIComponent(g.slug)}&league=${encodeURIComponent(g.leagueName)}&sport=${currentSport}" class="standings-link">Table →</a>
         </div>
         ${g.items.map(renderItem).join("")}
       `).join("");

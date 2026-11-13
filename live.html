@@ -7,7 +7,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Live Games — Anointed ODDS</title>
-<meta name="description" content="Live football scores and match stats, updated every minute.">
+<meta name="description" content="Live scores, results and fixtures for football, basketball, NFL, baseball and hockey.">
 <meta name="theme-color" content="#0E1B15">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -165,6 +165,31 @@
 
   footer{border-top:1px solid var(--line); padding:22px 0 40px; margin-top:20px;}
   footer p{color:var(--text-dim); font-size:0.75rem; line-height:1.6; margin:0;}
+
+  /* ---- Compact match rows: more games per screen ---- */
+  .mrow{
+    display:grid; grid-template-columns:50px minmax(0,1fr) auto minmax(0,1fr); align-items:center; gap:6px;
+    padding:7px 10px; margin-bottom:5px; border-radius:8px;
+  }
+  .mrow.clickable{cursor:pointer;}
+  .mrow:active{opacity:0.85; transform:none;}
+  .m-status{display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; font-size:0.66rem; line-height:1.2; color:var(--text-dim); min-width:0;}
+  .m-status .live-minute{font-size:0.66rem;}
+  .m-final{font-weight:700;}
+  .m-time{font-weight:700; font-size:0.74rem; color:var(--text);}
+  .m-cd{font-size:0.6rem;}
+  .m-team{display:flex; align-items:center; gap:5px; min-width:0;}
+  .m-team img{width:18px; height:18px; object-fit:contain; flex:0 0 auto;}
+  .m-team span{font-size:0.82rem; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;}
+  .m-away{justify-content:flex-end; text-align:right;}
+  .m-score{font-family:'Oswald',sans-serif; font-size:1.05rem; font-weight:700; color:var(--text-dim); min-width:42px; text-align:center;}
+  .m-score.is-live{color:var(--gold);}
+  .m-score.m-vs{font-family:'Inter',sans-serif; font-size:0.74rem; font-weight:500;}
+  .mrow .star-btn{font-size:0.8rem; padding:0 1px;}
+  .league-group-header{margin:12px 0 6px; padding-bottom:4px;}
+  .live-header{margin-bottom:8px;}
+  .soon-header, .finished-header{margin-top:16px; margin-bottom:8px;}
+  section.live{padding-top:10px;}
 </style>
 </head>
 <body>
@@ -186,14 +211,11 @@
 <div class="wrap">
   <section class="hero">
     <h1>Live Games</h1>
-    <p>Scores, results and full stats across 30+ leagues worldwide — Premier League down to Bolivia's Liga Profesional. Browse any day, past or upcoming.</p>
+    <p>Live scores, results and fixtures across football, basketball, NFL, baseball and hockey. Browse any day, past or upcoming.</p>
     <div class="last-updated" id="last-updated"></div>
   </section>
 
-  <div class="status-filter" id="sport-toggle" style="margin-top:16px;">
-    <button class="status-filter-btn active" onclick="setSport('football', this)">⚽ Football</button>
-    <button class="status-filter-btn" onclick="setSport('basketball', this)">🏀 Basketball</button>
-  </div>
+  <div class="status-filter" id="sport-toggle" style="margin-top:16px;"></div>
 
   <input type="text" id="search-box" class="search-box" placeholder="🔎 Search team or league…" oninput="applySearch()">
 
@@ -265,9 +287,13 @@ function toggleFavLeague(name, e) {
   localStorage.setItem("sureodds_fav_leagues", JSON.stringify(favs));
   loadLiveScores();
 }
+// Team ids restart at 1 in every sport, so favorites are stored per sport.
+// Football keeps the plain id so favorites saved before this update still work.
+function favKey(team) { return currentSport === "football" ? String(team.id) : `${currentSport}:${team.id}`; }
 function teamStar(team) {
-  const isFav = !!getFavTeams()[team.id];
-  return `<button class="star-btn ${isFav ? "active" : ""}" onclick="toggleFavTeam('${team.id}', '${(team.displayName || "").replace(/'/g, "\\'")}', event)" title="Follow this team">${isFav ? "★" : "☆"}</button>`;
+  const key = favKey(team);
+  const isFav = !!getFavTeams()[key];
+  return `<button class="star-btn ${isFav ? "active" : ""}" onclick="toggleFavTeam('${key}', '${(team.displayName || "").replace(/'/g, "\\'")}', event)" title="Follow this team">${isFav ? "★" : "☆"}</button>`;
 }
 
 // ============ Search filter — client-side, filters already-rendered cards ============
@@ -364,20 +390,31 @@ const FOOTBALL_LEAGUES = [
   "fifa.worldq.uefa", "fifa.worldq.concacaf", "fifa.worldq.afc", "fifa.worldq.caf", "fifa.worldq.conmebol",
 ];
 
-const BASKETBALL_LEAGUES = ["nba", "wnba"];
-const BASKETBALL_FLAG_MAP = { "nba": "🏀", "wnba": "🏀" };
+const SPORTS = {
+  football:   { label: "⚽ Football",   sportPath: "soccer",     leagues: FOOTBALL_LEAGUES,  flagMap: LEAGUE_FLAG_MAP,            ownDetailPage: true,  usDates: false },
+  basketball: { label: "🏀 Basketball", sportPath: "basketball", leagues: ["nba", "wnba"],    flagMap: { nba: "🏀", wnba: "🏀" },  ownDetailPage: false, usDates: true },
+  nfl:        { label: "🏈 NFL",        sportPath: "football",   leagues: ["nfl"],            flagMap: { nfl: "🏈" },              ownDetailPage: false, usDates: true },
+  baseball:   { label: "⚾ Baseball",   sportPath: "baseball",   leagues: ["mlb"],            flagMap: { mlb: "⚾" },              ownDetailPage: false, usDates: true },
+  hockey:     { label: "🏒 Hockey",     sportPath: "hockey",     leagues: ["nhl"],            flagMap: { nhl: "🏒" },              ownDetailPage: false, usDates: true },
+};
 
-let currentSport = "football"; // "football" | "basketball"
+let currentSport = "football";
+try { const saved = localStorage.getItem("sureodds_sport"); if (saved && SPORTS[saved]) currentSport = saved; } catch (e) {}
 
-function sportConfig() {
-  return currentSport === "basketball"
-    ? { sportPath: "basketball", leagues: BASKETBALL_LEAGUES, flagMap: BASKETBALL_FLAG_MAP }
-    : { sportPath: "soccer", leagues: FOOTBALL_LEAGUES, flagMap: LEAGUE_FLAG_MAP };
+function sportConfig() { return SPORTS[currentSport]; }
+
+function renderSportToggle() {
+  const el = document.getElementById("sport-toggle");
+  if (!el) return;
+  el.innerHTML = Object.entries(SPORTS).map(([key, sp]) =>
+    `<button class="status-filter-btn ${key === currentSport ? "active" : ""}" data-sport="${key}" onclick="setSport('${key}')">${sp.label}</button>`
+  ).join("");
 }
 
-function setSport(sport, btnEl) {
+function setSport(sport) {
   currentSport = sport;
-  document.querySelectorAll("#sport-toggle .status-filter-btn").forEach((b) => b.classList.toggle("active", b === btnEl));
+  try { localStorage.setItem("sureodds_sport", sport); } catch (e) {}
+  renderSportToggle();
   document.getElementById("search-box").value = "";
   loadLiveScores();
 }
@@ -469,28 +506,21 @@ function matchCard(event, slug, isLive, leagueName) {
   const comp = event.competitions[0];
   const home = comp.competitors.find((c) => c.homeAway === "home");
   const away = comp.competitors.find((c) => c.homeAway === "away");
+  const st = comp.status.type || {};
   const minute = comp.status.displayClock || "";
-  // Some clocks are already text (e.g. "HT"), not a number — only append the
-  // minute-mark apostrophe when displayClock is actually numeric.
+  // Football clocks are plain minutes ("67") so they get a minute mark. Other
+  // sports use ESPN's own short text ("4:12 - 3rd", "Halftime", "Bot 7th").
   const minuteText = /^\d+(\+\d+)?$/.test(minute) ? `${minute}'` : minute;
-  // ESPN already writes a clean human-readable note for shootouts (e.g.
-  // "Final/Pens") in the status detail — show that rather than guessing at
-  // a separate penalty-score field.
-  const statusDetail = (comp.status.type.detail || comp.status.type.shortDetail || "");
-  const isPens = /pen/i.test(statusDetail);
+  const isFootball = currentSport === "football";
+  const liveText = isFootball ? minuteText : (st.shortDetail || st.detail || minuteText);
+  const isPens = isFootball && /pen/i.test(st.detail || st.shortDetail || "");
+  const finalText = isFootball ? "FT" : (st.shortDetail || "Final");
   const statusBadge = isLive
-    ? `<span class="live-minute">🔴 ${minuteText}</span>`
-    : `<span style="color:var(--text-dim); font-weight:700;">FT${isPens ? ` <span class="pens-tag">(Pens)</span>` : ""}</span>`;
+    ? `<span class="live-minute">🔴 ${esc(liveText)}</span>`
+    : `<span class="m-final">${esc(finalText)}${isPens ? ` <span class="pens-tag">(Pens)</span>` : ""}</span>`;
 
-  let href, tapHint, target = "";
-  if (currentSport === "basketball") {
-    // match.html's stats/lineups/goal-timeline are built around football data,
-    // so basketball links straight to ESPN's own box score instead.
-    const summaryLink = (event.links && event.links.find((l) => l.rel.includes("summary"))) || null;
-    href = summaryLink ? summaryLink.href : "#";
-    tapHint = "View box score on ESPN →";
-    target = " ";
-  } else {
+  let href, newTab = false;
+  if (SPORTS[currentSport].ownDetailPage) {
     const params = new URLSearchParams({
       event: event.id, slug, league: leagueName || "",
       home: home.team.shortDisplayName || home.team.displayName,
@@ -502,18 +532,20 @@ function matchCard(event, slug, isLive, leagueName) {
       pens: isPens ? "1" : "",
     });
     href = `match.html?${params.toString()}`;
-    tapHint = "View lineups, goals &amp; cards →";
+  } else {
+    // match.html is built around football data, so other sports open ESPN's box score.
+    const summaryLink = (event.links && event.links.find((l) => l.rel.includes("summary"))) || null;
+    href = summaryLink ? summaryLink.href : null;
+    newTab = true;
   }
+  const click = href ? ` onclick="window.open('${href}', '${newTab ? "_blank', 'noopener" : "_self"}')"` : "";
 
   return `
-    <div class="live-card" onclick="window.open('${href}', '${target ? "_blank" : "_self"}')" style="cursor:pointer;">
-      <div class="live-league" style="justify-content:flex-end;">${statusBadge}</div>
-      <div class="live-teams">
-        <div class="live-team">${teamStar(home.team)}<img src="${home.team.logo || ""}" alt="" onerror="this.style.display='none'"><span>${home.team.shortDisplayName || home.team.displayName}</span></div>
-        <div class="live-score" style="${isLive ? "" : "color:var(--text-dim);"}">${home.score} - ${away.score}</div>
-        <div class="live-team" style="justify-content:flex-end; text-align:right;"><span>${away.team.shortDisplayName || away.team.displayName}</span><img src="${away.team.logo || ""}" alt="" onerror="this.style.display='none'">${teamStar(away.team)}</div>
-      </div>
-      <div class="tap-hint">${tapHint}</div>
+    <div class="live-card mrow${href ? " clickable" : ""}"${click}>
+      <div class="m-status">${statusBadge}</div>
+      <div class="m-team">${teamStar(home.team)}<img src="${esc(home.team.logo || "")}" alt="" onerror="this.style.display='none'"><span>${esc(home.team.shortDisplayName || home.team.displayName)}</span></div>
+      <div class="m-score${isLive ? " is-live" : ""}">${esc(home.score)} - ${esc(away.score)}</div>
+      <div class="m-team m-away"><span>${esc(away.team.shortDisplayName || away.team.displayName)}</span><img src="${esc(away.team.logo || "")}" alt="" onerror="this.style.display='none'">${teamStar(away.team)}</div>
     </div>`;
 }
 
@@ -521,18 +553,12 @@ function soonCard(event, kickoffMs, now, slug, leagueName) {
   const comp = event.competitions[0];
   const home = comp.competitors.find((c) => c.homeAway === "home");
   const away = comp.competitors.find((c) => c.homeAway === "away");
-  const diff = kickoffMs - now;
-  const mins = Math.round(diff / 60000);
-  const countdown = mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`;
+  const mins = Math.round((kickoffMs - now) / 60000);
+  const countdown = mins <= 0 ? "soon" : mins >= 60 ? `in ${Math.floor(mins / 60)}h ${mins % 60}m` : `in ${mins}m`;
   const kickoffTime = new Date(kickoffMs).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 
-  let href, tapHint, target = "";
-  if (currentSport === "basketball") {
-    const summaryLink = (event.links && event.links.find((l) => l.rel.includes("summary"))) || null;
-    href = summaryLink ? summaryLink.href : "#";
-    tapHint = "View on ESPN →";
-    target = " ";
-  } else {
+  let href, newTab = false;
+  if (SPORTS[currentSport].ownDetailPage) {
     const linkParams = new URLSearchParams({
       event: event.id, slug, league: leagueName || "",
       home: home.team.shortDisplayName || home.team.displayName,
@@ -541,18 +567,19 @@ function soonCard(event, kickoffMs, now, slug, leagueName) {
       homeScore: "-", awayScore: "-", status: "Upcoming", state: "upcoming",
     });
     href = `match.html?${linkParams.toString()}`;
-    tapHint = "Tap for lineups when available →";
+  } else {
+    const summaryLink = (event.links && event.links.find((l) => l.rel.includes("summary"))) || null;
+    href = summaryLink ? summaryLink.href : null;
+    newTab = true;
   }
+  const click = href ? ` onclick="window.open('${href}', '${newTab ? "_blank', 'noopener" : "_self"}')"` : "";
 
   return `
-    <div class="soon-card" onclick="window.open('${href}', '${target ? "_blank" : "_self"}')" style="cursor:pointer;">
-      <div class="soon-teams">
-        <div class="soon-team">${teamStar(home.team)}<img src="${home.team.logo || ""}" alt="" onerror="this.style.display='none'"><span>${home.team.shortDisplayName || home.team.displayName}</span></div>
-        <div class="soon-vs">vs</div>
-        <div class="soon-team" style="justify-content:flex-end; text-align:right;"><span>${away.team.shortDisplayName || away.team.displayName}</span><img src="${away.team.logo || ""}" alt="" onerror="this.style.display='none'">${teamStar(away.team)}</div>
-      </div>
-      <div class="soon-meta"><span>${kickoffTime}</span><span class="soon-countdown">Kicks off in ${countdown}</span></div>
-      <div class="tap-hint">${tapHint}</div>
+    <div class="soon-card mrow${href ? " clickable" : ""}"${click}>
+      <div class="m-status"><span class="m-time">${esc(kickoffTime)}</span><span class="m-cd">${countdown}</span></div>
+      <div class="m-team">${teamStar(home.team)}<img src="${esc(home.team.logo || "")}" alt="" onerror="this.style.display='none'"><span>${esc(home.team.shortDisplayName || home.team.displayName)}</span></div>
+      <div class="m-score m-vs">vs</div>
+      <div class="m-team m-away"><span>${esc(away.team.shortDisplayName || away.team.displayName)}</span><img src="${esc(away.team.logo || "")}" alt="" onerror="this.style.display='none'">${teamStar(away.team)}</div>
     </div>`;
 }
 
@@ -565,7 +592,7 @@ function renderMyTeams(liveEvents, upcomingEvents, finishedEvents, now) {
     const comp = event.competitions[0];
     const home = comp.competitors.find((c) => c.homeAway === "home");
     const away = comp.competitors.find((c) => c.homeAway === "away");
-    return !!(favs[home.team.id] || favs[away.team.id]);
+    return !!(favs[favKey(home.team)] || favs[favKey(away.team)]);
   };
 
   const myLive = liveEvents.filter(involvesFav);
@@ -614,12 +641,30 @@ async function loadLiveScores() {
     const d = String(currentDate.getDate()).padStart(2, "0");
     const todayStr = `${y}${m}${d}`;
     const cfg = sportConfig();
+    const prev = new Date(currentDate); prev.setDate(prev.getDate() - 1);
+    const prevStr = `${prev.getFullYear()}${String(prev.getMonth() + 1).padStart(2, "0")}${String(prev.getDate()).padStart(2, "0")}`;
+    const getScoreboard = (slug, dateStr) =>
+      fetch(`https://site.api.espn.com/apis/site/v2/sports/${cfg.sportPath}/${slug}/scoreboard?dates=${dateStr}`, { cache: "no-store" }).then((r) => r.json());
+
     const results = await Promise.allSettled(
-      cfg.leagues.map((slug) =>
-        fetch(`https://site.api.espn.com/apis/site/v2/sports/${cfg.sportPath}/${slug}/scoreboard?dates=${todayStr}`, { cache: "no-store" })
-          .then((r) => r.json())
-          .then((data) => ({ slug, data }))
-      )
+      cfg.leagues.map(async (slug) => {
+        if (!cfg.usDates) return { slug, data: await getScoreboard(slug, todayStr) };
+        // US leagues file games under US dates, so an evening game there is a
+        // late-night game for you. Fetch the day before as well, then keep only
+        // games whose kickoff falls on the selected day in the viewer's own time.
+        const [a, b] = await Promise.all([
+          getScoreboard(slug, prevStr).catch(() => null),
+          getScoreboard(slug, todayStr).catch(() => null),
+        ]);
+        const seen = new Set();
+        const events = [];
+        [a, b].forEach((d) => ((d && d.events) || []).forEach((e) => {
+          if (seen.has(e.id)) return;
+          seen.add(e.id);
+          if (new Date(e.date).toDateString() === currentDate.toDateString()) events.push(e);
+        }));
+        return { slug, data: { leagues: (b && b.leagues) || (a && a.leagues) || [], events } };
+      })
     );
 
     let liveEvents = [];
@@ -676,7 +721,7 @@ async function loadLiveScores() {
     renderMyTeams(liveEvents, upcomingEvents, finishedEvents, now);
 
     if (liveEvents.length === 0 && upcomingEvents.length === 0 && finishedEvents.length === 0 && postponedEvents.length === 0) {
-      wrap.innerHTML = `<div class="empty">No matches found for this date in the leagues we track.</div>`;
+      wrap.innerHTML = `<div class="empty">No ${currentSport === "football" ? "matches" : "games"} found for this date in the leagues we track.</div>`;
       return;
     }
 
@@ -688,7 +733,7 @@ async function loadLiveScores() {
             <button class="star-btn ${favs[g.leagueName] ? "active" : ""}" onclick="toggleFavLeague('${g.leagueName.replace(/'/g, "\\'")}', event)" title="Follow this league">${favs[g.leagueName] ? "★" : "☆"}</button>
             ${g.leagueName}
           </span>
-          <a href="standings.html?slug=${encodeURIComponent(g.slug)}&league=${encodeURIComponent(g.leagueName)}&sport=${currentSport}" class="standings-link">Table →</a>
+          <a href="standings.html?slug=${encodeURIComponent(g.slug)}&league=${encodeURIComponent(g.leagueName)}&sport=${SPORTS[currentSport].sportPath}" class="standings-link">Table →</a>
         </div>
         ${g.items.map(renderItem).join("")}
       `).join("");
@@ -736,6 +781,8 @@ async function loadLiveScores() {
 }
 
 updateDateLabel();
+if (LEAGUE_DEEPLINK) { currentSport = "football"; }
+renderSportToggle();
 if (LEAGUE_DEEPLINK) {
   document.getElementById("search-box").value = LEAGUE_NAME_MAP[LEAGUE_DEEPLINK] || LEAGUE_DEEPLINK;
 }

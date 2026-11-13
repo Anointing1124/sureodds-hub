@@ -125,7 +125,8 @@ function findStat(stats, names) {
 
 const params = new URLSearchParams(location.search);
 const SLUG = params.get("slug");
-const SPORT = params.get("sport") === "basketball" ? "basketball" : "soccer";
+const ALLOWED_SPORTS = ["soccer", "basketball", "football", "baseball", "hockey"];
+const SPORT = ALLOWED_SPORTS.includes(params.get("sport")) ? params.get("sport") : "soccer";
 const LEAGUE_NAME = params.get("league") || "League Table";
 document.getElementById("league-title").textContent = LEAGUE_NAME;
 document.title = `${LEAGUE_NAME} Standings — Anointed ODDS`;
@@ -159,42 +160,44 @@ async function loadStandings() {
 
     if (groups.length === 0) throw new Error("no entries");
 
-    function buildRows(entries) {
-      return entries.map((e) => {
+    // Columns differ by sport (football has draws and goal difference, NBA has
+    // win % and games behind...). Show only the columns the data actually has.
+    const COLUMNS = [
+      { label: "P",   names: ["gamesplayed", "played"] },
+      { label: "W",   names: ["wins"] },
+      { label: "D",   names: ["ties", "draws"] },
+      { label: "L",   names: ["losses"] },
+      { label: "OTL", names: ["otlosses", "overtimelosses"] },
+      { label: "GD",  names: ["pointdifferential", "goaldifferential", "differential"] },
+      { label: "Pct", names: ["winpercent", "winpct", "leaguewinpercent"] },
+      { label: "GB",  names: ["gamesbehind"] },
+      { label: "Pts", names: ["points"], strong: true },
+    ];
+
+    function renderGroupTable(entries) {
+      const rows = entries.map((e, i) => {
         const team = e.team || {};
         const stats = e.stats || [];
         return {
           name: team.shortDisplayName || team.displayName || team.name || "Team",
           logo: team.logo || (team.logos && team.logos[0] && team.logos[0].href) || "",
-          rank: findStat(stats, ["rank"]) ?? "-",
-          played: findStat(stats, ["gamesplayed", "played"]) ?? "-",
-          wins: findStat(stats, ["wins"]) ?? "-",
-          draws: findStat(stats, ["ties", "draws"]) ?? "-",
-          losses: findStat(stats, ["losses"]) ?? "-",
-          gd: findStat(stats, ["pointdifferential", "goaldifferential", "differential"]) ?? "-",
-          pts: findStat(stats, ["points"]) ?? "-",
+          rank: findStat(stats, ["rank"]) ?? (i + 1),
+          values: COLUMNS.map((c) => findStat(stats, c.names)),
         };
       });
-    }
-
-    function tableHtml(rows) {
+      const shown = COLUMNS.map((c, idx) => idx).filter((idx) => rows.some((r) => r.values[idx] != null));
       return `
         <div class="table-wrap">
           <table class="standings">
             <thead><tr>
-              <th>#</th><th class="team-col">Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th>
+              <th>#</th><th class="team-col">Team</th>${shown.map((idx) => `<th>${COLUMNS[idx].label}</th>`).join("")}
             </tr></thead>
             <tbody>
               ${rows.map((r) => `
                 <tr>
                   <td class="rank-cell">${esc(r.rank)}</td>
                   <td class="team-col"><div class="team-cell"><img src="${esc(r.logo)}" alt="" onerror="this.style.display='none'"><span>${esc(r.name)}</span></div></td>
-                  <td>${esc(r.played)}</td>
-                  <td>${esc(r.wins)}</td>
-                  <td>${esc(r.draws)}</td>
-                  <td>${esc(r.losses)}</td>
-                  <td>${esc(r.gd)}</td>
-                  <td class="pts-cell">${esc(r.pts)}</td>
+                  ${shown.map((idx) => `<td${COLUMNS[idx].strong ? ' class="pts-cell"' : ""}>${esc(r.values[idx] ?? "-")}</td>`).join("")}
                 </tr>`).join("")}
             </tbody>
           </table>
@@ -203,7 +206,7 @@ async function loadStandings() {
 
     wrap.innerHTML = groups.map((g) => `
       ${g.name ? `<h2 style="font-size:1rem; margin:20px 0 4px;">${esc(g.name)}</h2>` : ""}
-      ${tableHtml(buildRows(g.entries))}
+      ${renderGroupTable(g.entries)}
     `).join("");
   } catch (e) {
     wrap.innerHTML = `<div class="empty-note">Standings aren't available for this competition right now — this is more common for cup/qualifying competitions than for regular leagues.</div>`;
